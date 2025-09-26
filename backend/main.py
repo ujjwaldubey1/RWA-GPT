@@ -22,11 +22,13 @@ app.add_middleware(
 
 class MessageRequest(BaseModel):
     message: str
+    chainId: int | None = None
+    fromAddress: str | None = None
 
 class MessageResponse(BaseModel):
     response: str
     is_transaction: bool = False
-    transaction_data: dict = None
+    transaction_data: dict | None = None
 
 @app.post("/ask-agent", response_model=MessageResponse)
 async def ask_agent(request: MessageRequest):
@@ -53,20 +55,24 @@ async def ask_agent(request: MessageRequest):
             try:
                 # Extract amount and asset from message (simplified parsing)
                 amount = "100"  # Simplified - would need proper parsing
-                from_address = "0x1234567890123456789012345678901234567890"  # Placeholder
+                from_address = request.fromAddress or "0x1234567890123456789012345678901234567890"  # Placeholder
+                chain_id = request.chainId or 137
                 
                 # Get swap data from 1inch
                 swap_data = get_1inch_swap_data(
+                    chain_id=chain_id,
                     src_token="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
-                    dst_token="0x0000000000000000000000000000000000000000",  # Placeholder for RWA token
-                    amount=amount,
-                    from_address=from_address
+                    dst_token="0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH as default
+                    amount_human=amount,
+                    src_token_decimals=6,
+                    from_address=from_address,
                 )
                 
+                is_tx = bool(swap_data and isinstance(swap_data, dict) and (swap_data.get("tx") or swap_data.get("to")))
                 return MessageResponse(
                     response=f"1inch swap data for {amount} USDC:",
-                    is_transaction=True,
-                    transaction_data=swap_data
+                    is_transaction=is_tx,
+                    transaction_data=swap_data if is_tx else None
                 )
             except Exception as e:
                 return MessageResponse(

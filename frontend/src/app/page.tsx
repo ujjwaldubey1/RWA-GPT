@@ -148,7 +148,11 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: inputText }),
+        body: JSON.stringify({
+          message: inputText,
+          chainId: 137,
+          fromAddress: wallet.address,
+        }),
       });
 
       const data = await response.json();

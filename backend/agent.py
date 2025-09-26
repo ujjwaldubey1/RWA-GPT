@@ -3,6 +3,7 @@ import requests
 import json
 from dotenv import load_dotenv
 from uagents import Agent, Context, Model
+from decimal import Decimal
 
 # Load environment variables
 load_dotenv()
@@ -37,10 +38,12 @@ async def handle_message(ctx: Context, sender: str, msg: Message) -> None:
             
             # Get swap data from 1inch
             swap_data = get_1inch_swap_data(
+                chain_id=137,
                 src_token="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
-                dst_token="0x0000000000000000000000000000000000000000",  # Placeholder for RWA token
-                amount=amount,
-                from_address=from_address
+                dst_token="0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH on Polygon as sane default
+                amount_human=amount,
+                src_token_decimals=6,
+                from_address=from_address,
             )
             
             response = f"1inch swap data for {amount} USDC:\n{json.dumps(swap_data, indent=2)}"
@@ -80,18 +83,21 @@ def query_rwa_database(subgraph_url: str) -> str:
         return f"Unexpected error: {str(e)}"
 
 
-def get_1inch_swap_data(src_token: str, dst_token: str, amount: str, from_address: str) -> dict:
+def get_1inch_swap_data(chain_id: int, src_token: str, dst_token: str, amount_human: str, src_token_decimals: int, from_address: str) -> dict:
     """
-    Get swap data from 1inch API for Polygon network
+    Get swap data from 1inch API for specified EVM chain
     """
     try:
-        # 1inch API endpoint for Polygon (chain ID 137)
-        url = "https://api.1inch.io/v5.2/137/swap"
+        # 1inch API endpoint for the provided chain
+        url = f"https://api.1inch.io/v5.2/{chain_id}/swap"
+
+        # Convert human amount to minimal units
+        amount_units = str(int(Decimal(amount_human) * (10 ** src_token_decimals)))
         
         params = {
             "src": src_token,
             "dst": dst_token,
-            "amount": amount,
+            "amount": amount_units,
             "from": from_address,
             "slippage": "1"
         }
@@ -99,7 +105,8 @@ def get_1inch_swap_data(src_token: str, dst_token: str, amount: str, from_addres
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         
-        return response.json()
+        data = response.json()
+        return data
         
     except requests.exceptions.RequestException as e:
         return {"error": f"1inch API error: {str(e)}"}

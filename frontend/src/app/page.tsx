@@ -59,27 +59,71 @@ export default function Home() {
     }
 
     try {
-      const tx = await wallet.signer.sendTransaction({
-        to: transactionData.to,
-        value: transactionData.value,
-        data: transactionData.data,
-        gasLimit: transactionData.gas,
-      });
-
-      const receipt = await tx.wait();
+      // Parse the 1inch transaction data properly
+      let txParams: any = {};
       
+      if (transactionData.tx) {
+        // 1inch v5 format
+        txParams = {
+          to: transactionData.tx.to,
+          value: transactionData.tx.value || "0x0",
+          data: transactionData.tx.data,
+          gasLimit: transactionData.tx.gas || "0x5208", // Default gas limit
+        };
+      } else if (transactionData.to) {
+        // Direct format
+        txParams = {
+          to: transactionData.to,
+          value: transactionData.value || "0x0",
+          data: transactionData.data,
+          gasLimit: transactionData.gas || "0x5208",
+        };
+      } else {
+        throw new Error("Invalid transaction data format");
+      }
+
+      // Add gas price if available
+      if (transactionData.gasPrice) {
+        txParams.gasPrice = transactionData.gasPrice;
+      }
+
+      console.log("Sending transaction with params:", txParams);
+
+      const tx = await wallet.signer.sendTransaction(txParams);
+
       const successMessage: Message = {
         sender: 'agent',
-        text: `Transaction successful! Hash: ${receipt.hash}`,
+        text: `Transaction submitted! Hash: ${tx.hash}\nWaiting for confirmation...`,
         isTransaction: false
       };
       
       setMessages(prev => [...prev, successMessage]);
-    } catch (error) {
+
+      // Wait for confirmation
+      const receipt = await tx.wait();
+      
+      const confirmedMessage: Message = {
+        sender: 'agent',
+        text: `Transaction confirmed! Hash: ${receipt.hash}\nBlock: ${receipt.blockNumber}`,
+        isTransaction: false
+      };
+      
+      setMessages(prev => [...prev, confirmedMessage]);
+    } catch (error: any) {
       console.error("Transaction failed:", error);
+      let errorMsg = "Transaction failed";
+      
+      if (error.code === -32603) {
+        errorMsg = "Transaction rejected by network. Please check your wallet and try again.";
+      } else if (error.code === 4001) {
+        errorMsg = "Transaction rejected by user";
+      } else if (error.message) {
+        errorMsg = `Transaction failed: ${error.message}`;
+      }
+      
       const errorMessage: Message = {
         sender: 'agent',
-        text: `Transaction failed: ${error}`,
+        text: errorMsg,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);

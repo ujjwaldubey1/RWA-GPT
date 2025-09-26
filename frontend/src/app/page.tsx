@@ -34,6 +34,7 @@ export default function Home() {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const accounts = await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
+        const network = await provider.getNetwork();
         
         setWallet({
           address: accounts[0],
@@ -150,7 +151,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           message: inputText,
-          chainId: 137,
+          chainId: wallet.provider ? Number((await wallet.provider.getNetwork()).chainId) : 137,
           fromAddress: wallet.address,
         }),
       });

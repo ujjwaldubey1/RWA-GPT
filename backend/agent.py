@@ -4,6 +4,7 @@ import json
 from dotenv import load_dotenv
 from uagents import Agent, Context, Model
 from decimal import Decimal
+from typing import Tuple, Optional
 
 # Load environment variables
 load_dotenv()
@@ -37,12 +38,16 @@ async def handle_message(ctx: Context, sender: str, msg: Message) -> None:
             from_address = "0x1234567890123456789012345678901234567890"  # Placeholder
             
             # Get swap data from 1inch
+            # Default to Polygon if not provided elsewhere
+            chain_id = 137
+            src_token, dst_token, usdc_decimals = tokens_for_chain(chain_id)
+
             swap_data = get_1inch_swap_data(
-                chain_id=137,
-                src_token="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
-                dst_token="0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH on Polygon as sane default
+                chain_id=chain_id,
+                src_token=src_token,
+                dst_token=dst_token,
                 amount_human=amount,
-                src_token_decimals=6,
+                src_token_decimals=usdc_decimals,
                 from_address=from_address,
             )
             
@@ -105,8 +110,29 @@ def get_1inch_swap_data(chain_id: int, src_token: str, dst_token: str, amount_hu
         response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         
-        data = response.json()
+        # Attempt to parse JSON, otherwise return an error structure
+        try:
+            data = response.json()
+        except Exception:
+            return {"error": "1inch returned non-JSON response"}
         return data
+
+
+def tokens_for_chain(chain_id: int) -> Tuple[str, str, int]:
+    """Return (usdc, weth, usdc_decimals) for a supported chain."""
+    if chain_id == 1:
+        # Ethereum Mainnet
+        return (
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",  # USDC
+            "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
+            6,
+        )
+    # Default to Polygon
+    return (
+        "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC
+        "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH
+        6,
+    )
         
     except requests.exceptions.RequestException as e:
         return {"error": f"1inch API error: {str(e)}"}

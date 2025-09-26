@@ -1,0 +1,28 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: RWAPrivateCredit
+    network: mumbai
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: RWAPrivateCredit
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+        - Investment
+        - YieldDistribution
+      abis:
+        - name: RWAPrivateCredit
+          file: ./abis/RWAPrivateCredit.json
+      eventHandlers:
+        - event: Invested(indexed address,uint256)
+          handler: handleInvested
+        - event: YieldDistributed(uint256,uint256)
+          handler: handleYieldDistributed
+      file: ./src/mapping.ts

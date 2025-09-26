@@ -1,0 +1,19 @@
+type Pool @entity {
+	id: ID!
+	totalInvested: BigInt!
+	investments: [Investment!]! @derivedFrom(field: "pool")
+}
+
+type Investment @entity {
+	id: ID!
+	pool: Pool!
+	investor: Bytes!
+	amount: BigInt!
+	timestamp: BigInt!
+}
+
+type YieldDistribution @entity {
+	id: ID!
+	amount: BigInt!
+	timestamp: BigInt!
+}

@@ -1,0 +1,24 @@
+## RWA-GPT Project Rules
+
+### About the Project
+This project, RWA-GPT, is a hackathon submission for ETHGlobal New Delhi. It is an AI-powered conversational agent that serves as a universal, intelligent interface for the Real-World Asset (RWA) ecosystem. The goal is to allow users to discover, analyze, and invest in RWAs using natural language.
+
+The primary objective is to win prizes from Fetch.ai (for the agent), The Graph (for data indexing), and 1inch (for DeFi execution).
+
+### Tech Stack
+- **Frontend:** Next.js, TypeScript, Tailwind CSS, Ethers.js
+- **Backend/Agent:** Python, Fetch.ai uAgents framework
+- **Data Indexing:** The Graph Protocol (Subgraphs), AssemblyScript
+- **Package Manager (Python):** uv
+- **Chain:** Polygon Mumbai Testnet
+
+### Project Structure
+The project is a monorepo with the following structure:
+- `/frontend`: The Next.js web application.
+- `/backend`: The Python-based Fetch.ai agent.
+- `/subgraph`: The Graph Protocol subgraph for indexing RWA smart contracts.
+
+### AI Collaboration Rules
+- **Incremental Commits:** All work should be done in logical, incremental steps. Generate a git commit message after each distinct task is completed. This is a hackathon rule.
+- **No Placeholders:** Write complete, functional code. Do not leave "TODO" comments or placeholder logic unless explicitly asked.
+- **Opinionated Choices:** Make sensible, modern technical decisions. For example, use `uv` for Python environment management and `npm` for the frontend.

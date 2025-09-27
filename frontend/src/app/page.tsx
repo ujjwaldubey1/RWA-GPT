@@ -105,14 +105,14 @@ export default function Home() {
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `Transaction submitted! Hash: ${(txResponse as any).hash}\nWaiting for confirmation...`,
+        text: `Transaction submitted! Hash: ${(txResponse as { hash: string }).hash}\nWaiting for confirmation...`,
         isTransaction: false
       };
       
       setMessages(prev => [...prev, successMessage]);
 
       // Wait for confirmation
-      const receipt = await tx.wait();
+      const receipt = await (txResponse as { wait: () => Promise<{ hash: string; blockNumber: number }> }).wait();
       
       const confirmedMessage: Message = {
         sender: 'agent',

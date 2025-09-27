@@ -52,6 +52,35 @@ export default function Home() {
     if (typeof window.ethereum !== 'undefined') {
       try {
         setIsConnecting(true);
+        
+        // First, try to switch to Polygon Amoy Testnet
+        try {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x13882' }], // 80002 in hex
+          });
+        } catch {
+          // If switch fails, try to add the network
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x13882',
+                chainName: 'Polygon Amoy Testnet',
+                nativeCurrency: {
+                  name: 'MATIC',
+                  symbol: 'MATIC',
+                  decimals: 18,
+                },
+                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
+              }],
+            });
+          } catch {
+            console.log('Could not add network, proceeding with current network');
+          }
+        }
+        
         const provider = new ethers.BrowserProvider(window.ethereum);
         const accounts = await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
@@ -80,6 +109,65 @@ export default function Home() {
     }
 
     try {
+      // Check if we're on the correct network (Polygon Amoy Testnet)
+      const currentChainId = await wallet.signer.provider?.getNetwork();
+      const amoyTestnetChainId = 80002; // Polygon Amoy Testnet
+      
+      if (Number(currentChainId?.chainId) !== amoyTestnetChainId) {
+        // Request network switch to Polygon Amoy Testnet
+        try {
+          await window.ethereum?.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x13882' }], // 80002 in hex
+          });
+          
+          const switchMessage: Message = {
+            sender: 'agent',
+            text: `✅ Switched to Polygon Amoy Testnet for testing!`,
+            isTransaction: false
+          };
+          setMessages(prev => [...prev, switchMessage]);
+          
+          // Wait a moment for network switch
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch {
+          // If switch fails, try to add Polygon Amoy Testnet
+          try {
+            await window.ethereum?.request({
+              method: 'wallet_addEthereumChain',
+              params: [{
+                chainId: '0x13882',
+                chainName: 'Polygon Amoy Testnet',
+                nativeCurrency: {
+                  name: 'MATIC',
+                  symbol: 'MATIC',
+                  decimals: 18,
+                },
+                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
+              }],
+            });
+            
+            const addMessage: Message = {
+              sender: 'agent',
+              text: `✅ Added and switched to Polygon Amoy Testnet!`,
+              isTransaction: false
+            };
+            setMessages(prev => [...prev, addMessage]);
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } catch {
+            const networkErrorMessage: Message = {
+              sender: 'agent',
+              text: `❌ Please manually switch to Polygon Amoy Testnet in your wallet. This is required for testing mode.`,
+              isTransaction: false
+            };
+            setMessages(prev => [...prev, networkErrorMessage]);
+            return;
+          }
+        }
+      }
+
       // Parse the 1inch transaction data properly
       let txParams: Record<string, unknown> = {};
       
@@ -115,7 +203,7 @@ export default function Home() {
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `Transaction submitted! Hash: ${(txResponse as { hash: string }).hash}\nWaiting for confirmation...`,
+        text: `🚀 Transaction submitted! Hash: ${(txResponse as { hash: string }).hash}\n⏳ Waiting for confirmation...`,
         isTransaction: false
       };
       
@@ -126,31 +214,37 @@ export default function Home() {
       
       const confirmedMessage: Message = {
         sender: 'agent',
-        text: `Transaction confirmed! Hash: ${receipt?.hash}\nBlock: ${receipt?.blockNumber}`,
+        text: `✅ Transaction confirmed! \n🔗 Hash: ${receipt?.hash}\n📦 Block: ${receipt?.blockNumber}\n🎉 Your RWA investment is complete!`,
         isTransaction: false
       };
       
       setMessages(prev => [...prev, confirmedMessage]);
     } catch (error: unknown) {
       console.error("Transaction failed:", error);
-      let errorMsg = "Transaction failed";
+      let errorMsg = "❌ Transaction failed";
       
       if (error && typeof error === 'object' && 'code' in error) {
         const errorCode = (error as { code: number }).code;
         if (errorCode === -32603) {
-          errorMsg = "Transaction rejected by network. Please check your wallet and try again.";
+          errorMsg = "❌ Transaction rejected by network. Please ensure you have enough MATIC for gas fees on Polygon network.";
         } else if (errorCode === 4001) {
-          errorMsg = "Transaction rejected by user";
+          errorMsg = "❌ Transaction rejected by user";
+        } else if (errorCode === -32000) {
+          errorMsg = "❌ Insufficient funds for gas. Please add test MATIC to your wallet from Polygon Amoy faucet.";
         }
       }
       if (error && typeof error === 'object' && 'message' in error) {
         const errorMessage = (error as { message: string }).message;
-        errorMsg = `Transaction failed: ${errorMessage}`;
+        if (errorMessage.includes('insufficient funds')) {
+          errorMsg = "❌ Insufficient funds for gas. Please add test MATIC from Polygon Amoy faucet: https://faucet.polygon.technology/";
+        } else {
+          errorMsg = `❌ Transaction failed: ${errorMessage}`;
+        }
       }
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: errorMsg,
+        text: errorMsg + "\n\n💡 Tip: Get free test MATIC from https://faucet.polygon.technology/ for Amoy testnet!",
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -177,7 +271,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           message: inputText,
-          chainId: wallet.provider ? Number((await wallet.provider.getNetwork()).chainId) : 137,
+          chainId: wallet.provider ? Number((await wallet.provider.getNetwork()).chainId) : 80002,
           fromAddress: wallet.address,
         }),
       });
@@ -326,7 +420,15 @@ export default function Home() {
                   R
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to RWA-GPT</h2>
-                <p className="text-gray-600 mb-8">Your AI-powered Real-World Asset conversational agent. Ask me about investments, show data, or request swaps.</p>
+                <p className="text-gray-600 mb-4">Your AI-powered Real-World Asset conversational agent. Ask me about investments, show data, or request swaps.</p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-sm">
+                  <div className="font-medium text-blue-900 mb-2">🧪 Testnet Mode Active</div>
+                  <div className="text-blue-700">
+                    • System uses <strong>Polygon Amoy Testnet</strong><br/>
+                    • Get free test MATIC from <a href="https://faucet.polygon.technology/" target="_blank" className="text-blue-600 underline">Polygon Faucet</a><br/>
+                    • All transactions are free for testing
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
                   {quickActions.map((action, index) => (

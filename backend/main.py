@@ -396,15 +396,19 @@ async def ask_agent(request: MessageRequest):
                 m = re.search(r"(\d+(?:\.\d+)?)", request.message)
                 amount = m.group(1) if m else "100"
                 from_address = request.fromAddress or "0x1234567890123456789012345678901234567890"  # Placeholder
-                chain_id = request.chainId or 137
+                chain_id = 80002  # Force Polygon Amoy Testnet for testing
+                
+                # Get correct token addresses for the testnet
+                from agent import tokens_for_chain
+                src_token, dst_token, src_decimals = tokens_for_chain(chain_id)
                 
                 # Get swap data from 1inch
                 swap_data = get_1inch_swap_data(
                     chain_id=chain_id,
-                    src_token="0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC on Polygon
-                    dst_token="0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH as default
+                    src_token=src_token,  # USDC on Amoy Testnet
+                    dst_token=dst_token,  # WETH on Amoy Testnet
                     amount_human=amount,
-                    src_token_decimals=6,
+                    src_token_decimals=src_decimals,
                     from_address=from_address,
                 )
                 

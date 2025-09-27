@@ -160,7 +160,21 @@ def tokens_for_chain(chain_id: int) -> Tuple[str, str, int]:
             "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  # WETH
             6,
         )
-    # Default to Polygon
+    elif chain_id == 137:
+        # Polygon Mainnet
+        return (
+            "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC
+            "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH
+            6,
+        )
+    elif chain_id == 80002:
+        # Polygon Amoy Testnet
+        return (
+            "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582",  # USDC on Amoy
+            "0x360ad4f9a9A8EFe9A8DCB5f461c4Cc1047E1Dcf9",  # WETH on Amoy
+            6,
+        )
+    # Default to Polygon Mainnet
     return (
         "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",  # USDC
         "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH

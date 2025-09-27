@@ -73,21 +73,22 @@ export default function Home() {
       // Parse the 1inch transaction data properly
       let txParams: Record<string, unknown> = {};
       
-      if (transactionData.tx) {
+      const txData = transactionData.tx as Record<string, unknown>;
+      if (txData) {
         // 1inch v5 format
         txParams = {
-          to: transactionData.tx.to,
-          value: transactionData.tx.value || "0x0",
-          data: transactionData.tx.data,
-          gasLimit: transactionData.tx.gas || "0x5208", // Default gas limit
+          to: txData.to as string,
+          value: (txData.value as string) || "0x0",
+          data: txData.data as string,
+          gasLimit: (txData.gas as string) || "0x5208", // Default gas limit
         };
       } else if (transactionData.to) {
         // Direct format
         txParams = {
-          to: transactionData.to,
-          value: transactionData.value || "0x0",
-          data: transactionData.data,
-          gasLimit: transactionData.gas || "0x5208",
+          to: transactionData.to as string,
+          value: (transactionData.value as string) || "0x0",
+          data: transactionData.data as string,
+          gasLimit: (transactionData.gas as string) || "0x5208",
         };
       } else {
         throw new Error("Invalid transaction data format");
@@ -95,16 +96,16 @@ export default function Home() {
 
       // Add gas price if available
       if (transactionData.gasPrice) {
-        txParams.gasPrice = transactionData.gasPrice;
+        txParams.gasPrice = transactionData.gasPrice as string;
       }
 
       console.log("Sending transaction with params:", txParams);
 
-      const tx = await wallet.signer.sendTransaction(txParams);
+      const txResponse = await wallet.signer.sendTransaction(txParams);
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `Transaction submitted! Hash: ${tx.hash}\nWaiting for confirmation...`,
+        text: `Transaction submitted! Hash: ${(txResponse as any).hash}\nWaiting for confirmation...`,
         isTransaction: false
       };
       
@@ -120,16 +121,21 @@ export default function Home() {
       };
       
       setMessages(prev => [...prev, confirmedMessage]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Transaction failed:", error);
       let errorMsg = "Transaction failed";
       
-      if (error.code === -32603) {
-        errorMsg = "Transaction rejected by network. Please check your wallet and try again.";
-      } else if (error.code === 4001) {
-        errorMsg = "Transaction rejected by user";
-      } else if (error.message) {
-        errorMsg = `Transaction failed: ${error.message}`;
+      if (error && typeof error === 'object' && 'code' in error) {
+        const errorCode = (error as { code: number }).code;
+        if (errorCode === -32603) {
+          errorMsg = "Transaction rejected by network. Please check your wallet and try again.";
+        } else if (errorCode === 4001) {
+          errorMsg = "Transaction rejected by user";
+        }
+      }
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as { message: string }).message;
+        errorMsg = `Transaction failed: ${errorMessage}`;
       }
       
       const errorMessage: Message = {
@@ -348,7 +354,7 @@ export default function Home() {
                         {message.isTransaction && message.transactionData && (
                           <div className="mt-4 pt-4 border-t border-gray-200">
                             <button
-                              onClick={() => executeSwap(message.transactionData)}
+                              onClick={() => message.transactionData && executeSwap(message.transactionData)}
                               className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                             >
                               <span>⚡</span>

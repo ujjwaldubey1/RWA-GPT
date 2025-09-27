@@ -19,6 +19,9 @@ except ImportError:
 # Load environment variables
 load_dotenv()
 
+# In-memory transaction storage (in production, use a database)
+TRANSACTION_HISTORY = []
+
 # Enhanced RWA Investment Database with detailed options
 RWA_INVESTMENT_OPTIONS = {
     "treasury_bills": {
@@ -321,8 +324,48 @@ async def ask_agent(request: MessageRequest):
     try:
         message = request.message.lower()
         
+        # Check if user wants to see transaction history
+        if any(keyword in message for keyword in ["transaction history", "my transactions", "transaction list", "history", "past transactions"]):
+            user_address = request.fromAddress or "0x1234567890123456789012345678901234567890"
+            
+            # Filter transactions for this user
+            user_transactions = [tx for tx in TRANSACTION_HISTORY if tx["user_address"].lower() == user_address.lower()]
+            
+            if not user_transactions:
+                return MessageResponse(
+                    response="📋 **Your Transaction History**\n\nNo transactions found yet.\n\n💡 Try making an investment first:\n• 'invest 100 USDC in RE-001'\n• 'invest 50 USDC in RE-002'",
+                    is_transaction=False
+                )
+            
+            # Sort by timestamp (newest first)
+            user_transactions.sort(key=lambda x: x["timestamp"], reverse=True)
+            
+            response_text = f"📋 **Your Transaction History**\n\n"
+            response_text += f"Found {len(user_transactions)} transaction(s)\n\n"
+            
+            for i, tx in enumerate(user_transactions, 1):
+                response_text += f"🔹 **Transaction #{i}**\n"
+                response_text += f"   💰 Amount: {tx['amount']} USDC\n"
+                response_text += f"   🏠 Asset: {tx['asset_id']}\n"
+                response_text += f"   📅 Time: {tx['timestamp'][:19].replace('T', ' ')}\n"
+                response_text += f"   🔗 Chain: Polygon Amoy (ID: {tx['chain_id']})\n"
+                response_text += f"   📊 Status: {tx['status']}\n"
+                if tx.get('x402_payment_id'):
+                    response_text += f"   🤖 x402 ID: {tx['x402_payment_id']}\n"
+                response_text += "\n"
+            
+            response_text += "💡 **Commands:**\n"
+            response_text += "• 'invest 100 USDC in RE-001' - Make new investment\n"
+            response_text += "• 'show real estate investments' - View available options\n"
+            response_text += "• 'transaction history' - View this list again\n"
+            
+            return MessageResponse(
+                response=response_text,
+                is_transaction=False
+            )
+        
         # Check if user wants to see RAW subgraph data (very specific request)
-        if message in ["subgraph data", "raw data"]:
+        elif message in ["subgraph data", "raw data"]:
             subgraph_url = os.getenv("SUBGRAPH_URL")
             if subgraph_url:
                 live_data = query_rwa_database(subgraph_url)
@@ -436,6 +479,7 @@ async def ask_agent(request: MessageRequest):
 
                 # Optional x402 enhancement (doesn't break existing flow)
                 response_text = f"1inch swap data for {amount} USDC:"
+                x402_payment_id = None
                 if X402_AVAILABLE:
                     try:
                         x402_processor = X402PaymentProcessor()
@@ -446,13 +490,27 @@ async def ask_agent(request: MessageRequest):
                             user_address=from_address
                         )
                         if x402_result["status"] == "processed":
-                            response_text += f"\n\n🤖 x402 Agentic Payment Available:\n{x402_result['agent_response']}\n💡 Payment ID: {x402_result['x402_payment_id']}"
+                            x402_payment_id = x402_result['x402_payment_id']
+                            response_text += f"\n\n🤖 x402 Agentic Payment Available:\n{x402_result['agent_response']}\n💡 Payment ID: {x402_payment_id}"
                             # Add x402 metadata to transaction
                             if isinstance(tx_payload, dict):
                                 tx_payload["x402_metadata"] = x402_result
                     except Exception as e:
                         # Silently continue with existing flow if x402 fails
                         pass
+
+                # Store transaction in history
+                transaction_record = {
+                    "timestamp": datetime.now().isoformat(),
+                    "user_address": from_address,
+                    "amount": amount,
+                    "asset_id": "RE-001",
+                    "transaction_type": "investment",
+                    "x402_payment_id": x402_payment_id,
+                    "status": "pending",
+                    "chain_id": chain_id
+                }
+                TRANSACTION_HISTORY.append(transaction_record)
 
                 return MessageResponse(
                     response=response_text,

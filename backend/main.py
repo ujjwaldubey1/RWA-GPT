@@ -9,6 +9,12 @@ import re
 import requests
 from datetime import datetime
 import random
+# Optional x402 integration - doesn't break existing functionality
+try:
+    from x402_integration import X402PaymentProcessor, enhance_existing_payment_with_x402
+    X402_AVAILABLE = True
+except ImportError:
+    X402_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -428,8 +434,28 @@ async def ask_agent(request: MessageRequest):
                 else:
                     tx_payload = swap_data.get("tx") or swap_data
 
+                # Optional x402 enhancement (doesn't break existing flow)
+                response_text = f"1inch swap data for {amount} USDC:"
+                if X402_AVAILABLE:
+                    try:
+                        x402_processor = X402PaymentProcessor()
+                        x402_result = x402_processor.process_agent_payment(
+                            investment_request=request.message,
+                            amount=amount,
+                            asset_id="RE-001",  # Extract from message in production
+                            user_address=from_address
+                        )
+                        if x402_result["status"] == "processed":
+                            response_text += f"\n\n🤖 x402 Agentic Payment Available:\n{x402_result['agent_response']}\n💡 Payment ID: {x402_result['x402_payment_id']}"
+                            # Add x402 metadata to transaction
+                            if isinstance(tx_payload, dict):
+                                tx_payload["x402_metadata"] = x402_result
+                    except Exception as e:
+                        # Silently continue with existing flow if x402 fails
+                        pass
+
                 return MessageResponse(
-                    response=f"1inch swap data for {amount} USDC:",
+                    response=response_text,
                     is_transaction=is_tx,
                     transaction_data=tx_payload
                 )

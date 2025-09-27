@@ -51,7 +51,10 @@ async def handle_message(ctx: Context, sender: str, msg: Message) -> None:
                 from_address=from_address,
             )
             
-            response = f"1inch swap data for {amount} USDC:\n{json.dumps(swap_data, indent=2)}"
+            # Decide whether we have a transaction
+            is_tx = bool(isinstance(swap_data, dict) and (swap_data.get("tx") or swap_data.get("to")))
+            pretty = json.dumps(swap_data, indent=2)
+            response = f"1inch swap data for {amount} USDC:\n{pretty}" if is_tx else f"No executable tx from aggregator. Details:\n{pretty}"
         except Exception as e:
             response = f"Error getting swap data: {str(e)}"
     else:
@@ -93,8 +96,9 @@ def get_1inch_swap_data(chain_id: int, src_token: str, dst_token: str, amount_hu
     Get swap data from 1inch API for specified EVM chain
     """
     try:
-        # 1inch API endpoint for the provided chain
-        url = f"https://api.1inch.io/v5.2/{chain_id}/swap"
+        # Prefer 1inch DEV API (requires API key). Fallback to 0x if unavailable
+        oneinch_api_key = os.getenv("ONEINCH_API_KEY")
+        oneinch_url = f"https://api.1inch.dev/swap/v5.2/{chain_id}/swap"
 
         # Convert human amount to minimal units
         amount_units = str(int(Decimal(amount_human) * (10 ** src_token_decimals)))
@@ -107,15 +111,52 @@ def get_1inch_swap_data(chain_id: int, src_token: str, dst_token: str, amount_hu
             "slippage": "1"
         }
         
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        
-        # Attempt to parse JSON, otherwise return an error structure
+        if oneinch_api_key:
+            headers = {"Authorization": f"Bearer {oneinch_api_key}"}
+            try:
+                response = requests.get(oneinch_url, params=params, headers=headers, timeout=15)
+                response.raise_for_status()
+                data = response.json()
+                if isinstance(data, dict) and (data.get("tx") or data.get("to")):
+                    return data
+            except Exception:
+                # Fall through to 0x
+                pass
+
+        # Fallback: 0x quote (often works without API key for demos)
+        if chain_id == 137:
+            zerox_url = "https://polygon.api.0x.org/swap/v1/quote"
+        elif chain_id == 1:
+            zerox_url = "https://api.0x.org/swap/v1/quote"
+        else:
+            return {"error": "Unsupported chain for fallback aggregator"}
+
+        zerox_params = {
+            "sellToken": src_token,
+            "buyToken": dst_token,
+            "sellAmount": amount_units,
+            "takerAddress": from_address,
+            "slippagePercentage": "0.01",
+        }
         try:
-            data = response.json()
-        except Exception:
-            return {"error": "1inch returned non-JSON response"}
-        return data
+            zr = requests.get(zerox_url, params=zerox_params, timeout=15)
+            zr.raise_for_status()
+            z = zr.json()
+            # Normalize to 1inch-like shape with tx field
+            tx = {
+                "to": z.get("to"),
+                "data": z.get("data"),
+                "value": hex(int(z.get("value", "0"))),
+                "gas": hex(int(z.get("gas"))) if z.get("gas") else None,
+                "gasPrice": hex(int(z.get("gasPrice"))) if z.get("gasPrice") else None,
+            }
+            return {"tx": tx, "_source": "0x"}
+        except Exception as e:
+            return {"error": f"aggregator_unavailable: {str(e)}"}
+    except requests.exceptions.RequestException as e:
+        return {"error": f"1inch API error: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Unexpected error: {str(e)}"}
 
 
 def tokens_for_chain(chain_id: int) -> Tuple[str, str, int]:
@@ -133,11 +174,6 @@ def tokens_for_chain(chain_id: int) -> Tuple[str, str, int]:
         "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",  # WETH
         6,
     )
-        
-    except requests.exceptions.RequestException as e:
-        return {"error": f"1inch API error: {str(e)}"}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
 
 
 if __name__ == "__main__":

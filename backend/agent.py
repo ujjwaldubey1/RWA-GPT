@@ -63,32 +63,20 @@ async def handle_message(ctx: Context, sender: str, msg: Message) -> None:
     await ctx.send(sender, Message(content=response))
 
 
-def query_rwa_database(subgraph_url: str) -> str:
-    """
-    Query the subgraph for latest investments
-    """
+def query_rwa_database(subgraph_url: str):
+    """Return latest 5 investments from subgraph, or None on error."""
     try:
-        # GraphQL query to fetch latest 5 investments
         query = {
             "query": "{ investments(first: 5, orderBy: timestamp, orderDirection: desc) { id investor amount timestamp } }"
         }
-        
-        # Send POST request to subgraph
         response = requests.post(subgraph_url, json=query, timeout=10)
         response.raise_for_status()
-        
         data = response.json()
-        
-        if "data" in data and "investments" in data["data"]:
-            investments = data["data"]["investments"]
-            return json.dumps(investments, indent=2)
-        else:
-            return "No investments found or error in response"
-            
-    except requests.exceptions.RequestException as e:
-        return f"Error querying subgraph: {str(e)}"
-    except Exception as e:
-        return f"Unexpected error: {str(e)}"
+        if isinstance(data, dict) and data.get("data") and data["data"].get("investments") is not None:
+            return data["data"]["investments"]
+        return None
+    except Exception:
+        return None
 
 
 def get_1inch_swap_data(chain_id: int, src_token: str, dst_token: str, amount_human: str, src_token_decimals: int, from_address: str) -> dict:

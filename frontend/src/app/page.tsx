@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 interface Message {
   sender: 'user' | 'agent';
   text: string;
@@ -25,6 +31,7 @@ export default function Home() {
     signer: null
   });
   const [isConnecting, setIsConnecting] = useState(false);
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   // Connect wallet
   const connectWallet = async () => {
@@ -144,7 +151,7 @@ export default function Home() {
 
     try {
       // Call backend API
-      const response = await fetch('http://localhost:8000/ask-agent', {
+      const response = await fetch(`${API_BASE}/ask-agent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +162,10 @@ export default function Home() {
           fromAddress: wallet.address,
         }),
       });
-
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `HTTP ${response.status}`);
+      }
       const data = await response.json();
       
       const agentMessage: Message = {

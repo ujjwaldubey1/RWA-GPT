@@ -3,11 +3,13 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum
-    name: RWAPrivateCredit
-    network: mumbai
+    name: MockRWAPool
+    network: amoy # Make sure this is set to amoy
     source:
+      # PASTE YOUR DEPLOYED CONTRACT ADDRESS HERE
       address: "0x0000000000000000000000000000000000000000"
-      abi: RWAPrivateCredit
+      abi: MockRWAPool
+      # PASTE YOUR DEPLOYMENT BLOCK NUMBER HERE
       startBlock: 0
     mapping:
       kind: ethereum/events
@@ -18,8 +20,8 @@ dataSources:
         - Investment
         - YieldDistribution
       abis:
-        - name: RWAPrivateCredit
-          file: ./abis/RWAPrivateCredit.json
+        - name: MockRWAPool
+          file: ./abis/MockRWAPool.json
       eventHandlers:
         - event: Invested(indexed address,uint256)
           handler: handleInvested

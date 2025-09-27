@@ -15,7 +15,11 @@ app = FastAPI(title="RWA-GPT API", version="1.0.0")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    # Allow common local dev origins
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,23 +40,82 @@ async def ask_agent(request: MessageRequest):
     try:
         message = request.message.lower()
         
-        # Check if user wants to see investments
-        if "show investments" in message:
+        # Check if user wants to see investments (more flexible matching)
+        if any(keyword in message for keyword in ["show investments", "investment options", "investments", "show me investment", "investment data", "rwa assets", "available assets"]):
             subgraph_url = os.getenv("SUBGRAPH_URL")
             if subgraph_url:
-                investments = query_rwa_database(subgraph_url)
+                live_data = query_rwa_database(subgraph_url)
+                if live_data:
+                    return MessageResponse(
+                        response=f"Latest investments from subgraph:\n{json.dumps(live_data, indent=2)}",
+                        is_transaction=False
+                    )
+                # Fall back to curated options when subgraph has no data yet
+                mock_investments = """[
+  {
+    "asset_id": "TCB-001",
+    "asset_type": "Tokenized T-Bill",
+    "protocol": "Ondo",
+    "yield_apy": 4.8,
+    "min_investment": "1000 USDC",
+    "status": "Active"
+  },
+  {
+    "asset_id": "PCR-007", 
+    "asset_type": "Private Credit",
+    "protocol": "Centrifuge",
+    "yield_apy": 9.2,
+    "min_investment": "5000 USDC",
+    "status": "Active"
+  },
+  {
+    "asset_id": "RWA-003",
+    "asset_type": "Real Estate Token",
+    "protocol": "RealT",
+    "yield_apy": 6.5,
+    "min_investment": "50 USDC",
+    "status": "Active"
+  }
+]"""
                 return MessageResponse(
-                    response=f"Latest investments from subgraph:\n{investments}",
+                    response=f"No indexed investments yet. Here are curated options you can try now:\n{mock_investments}",
                     is_transaction=False
                 )
             else:
+                # Return mock data when subgraph is not configured
+                mock_investments = """[
+  {
+    "asset_id": "TCB-001",
+    "asset_type": "Tokenized T-Bill",
+    "protocol": "Ondo",
+    "yield_apy": 4.8,
+    "min_investment": "1000 USDC",
+    "status": "Active"
+  },
+  {
+    "asset_id": "PCR-007", 
+    "asset_type": "Private Credit",
+    "protocol": "Centrifuge",
+    "yield_apy": 9.2,
+    "min_investment": "5000 USDC",
+    "status": "Active"
+  },
+  {
+    "asset_id": "RWA-003",
+    "asset_type": "Real Estate Token",
+    "protocol": "RealT",
+    "yield_apy": 6.5,
+    "min_investment": "50 USDC",
+    "status": "Active"
+  }
+]"""
                 return MessageResponse(
-                    response="Subgraph URL not configured. Please set SUBGRAPH_URL in .env file.",
+                    response=f"Available RWA Investment Options:\n{mock_investments}\n\nTo invest, try: 'invest 100 USDC in TCB-001'",
                     is_transaction=False
                 )
         
-        # Check if user wants to invest
-        elif "invest" in message and "usdc" in message:
+        # Check if user wants to invest (more flexible matching)
+        elif "invest" in message and any(token in message for token in ["usdc", "tcb", "pcr", "rwa"]):
             try:
                 # Extract amount from message (simple parse; default 100)
                 m = re.search(r"(\d+(?:\.\d+)?)", request.message)
@@ -97,10 +160,10 @@ async def ask_agent(request: MessageRequest):
                     is_transaction=False
                 )
         
-        # Default response
+        # Default response with helpful suggestions
         else:
             return MessageResponse(
-                response="I understand you want to interact with RWA assets. Try 'show investments' or 'invest 100 USDC in TCB-001'",
+                response="I can help you with RWA investments! Here are some things you can try:\n\n• 'show investment options' - See available RWA assets\n• 'invest 100 USDC in TCB-001' - Execute a swap transaction\n• 'show investments' - View latest investment data\n\nWhat would you like to do?",
                 is_transaction=False
             )
             

@@ -232,7 +232,7 @@ export default function Home() {
         <nav className="flex-1 p-4">
           <div className="space-y-2">
             <button 
-              className="w-full flex items-center gap-3 p-3 rounded-lg bg-orange-500 text-white"
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-600 text-white"
               onClick={() => setMessages([])}
             >
               <span>💬</span>
@@ -278,7 +278,7 @@ export default function Home() {
             <button
               onClick={connectWallet}
               disabled={isConnecting}
-              className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
+              className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
             >
               {isConnecting ? "..." : sidebarOpen ? "Connect Wallet" : "🔗"}
             </button>
@@ -317,12 +317,12 @@ export default function Home() {
         </header>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 min-h-0">
+        <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50 min-h-0">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 flex flex-col">
             {messages.length === 0 ? (
               <div className="max-w-2xl mx-auto text-center py-12">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
                   R
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to RWA-GPT</h2>
@@ -337,7 +337,7 @@ export default function Home() {
                         const event = { preventDefault: () => {} } as React.FormEvent;
                         handleSubmit(event);
                       }}
-                      className="p-4 bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all group"
+                      className="p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group"
                     >
                       <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">{action.icon}</div>
                       <div className="text-sm font-medium text-gray-900">{action.title}</div>
@@ -357,7 +357,7 @@ export default function Home() {
                         <div
                           className={`px-6 py-4 rounded-2xl ${
                             message.sender === 'user'
-                              ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
+                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                               : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
                           }`}
                         >
@@ -379,7 +379,7 @@ export default function Home() {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                           message.sender === 'user' 
                             ? 'bg-gray-300 text-gray-700' 
-                            : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white'
+                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                         }`}>
                           {message.sender === 'user' ? 'U' : 'R'}
                         </div>
@@ -402,13 +402,13 @@ export default function Home() {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     placeholder="Ask about RWA investments..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={!inputText.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl hover:from-orange-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
                 >
                   Send
                 </button>

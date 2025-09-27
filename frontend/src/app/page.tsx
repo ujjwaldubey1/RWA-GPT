@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ethers } from "ethers";
 
 declare global {
@@ -35,7 +35,17 @@ export default function Home() {
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+  // Auto-scroll to bottom when new messages are added
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Connect wallet
   const connectWallet = async () => {
@@ -205,13 +215,13 @@ export default function Home() {
   ];
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white transition-all duration-300 flex flex-col`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white transition-all duration-300 flex flex-col flex-shrink-0`}>
         {/* Logo */}
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
               R
             </div>
             {sidebarOpen && <span className="font-semibold">RWA-GPT</span>}
@@ -307,9 +317,9 @@ export default function Home() {
         </header>
 
         {/* Chat Area */}
-        <div className="flex-1 flex flex-col bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
+        <div className="flex-1 flex flex-col bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50 min-h-0">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 flex flex-col">
             {messages.length === 0 ? (
               <div className="max-w-2xl mx-auto text-center py-12">
                 <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
@@ -336,51 +346,54 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <div className="max-w-4xl mx-auto space-y-6">
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-2xl ${message.sender === 'user' ? 'order-2' : 'order-1'}`}>
-                      <div
-                        className={`px-6 py-4 rounded-2xl ${
-                          message.sender === 'user'
-                            ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
-                            : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
-                        }`}
-                      >
-                        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{message.text}</pre>
-                        {message.isTransaction && message.transactionData && (
-                          <div className="mt-4 pt-4 border-t border-gray-200">
-                            <button
-                              onClick={() => message.transactionData && executeSwap(message.transactionData)}
-                              className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                              <span>⚡</span>
-                              Execute Swap
-                            </button>
-                          </div>
-                        )}
+              <div className="flex-1 flex flex-col justify-end">
+                <div className="max-w-4xl mx-auto w-full space-y-6 pb-4">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div className={`max-w-2xl ${message.sender === 'user' ? 'order-2' : 'order-1'}`}>
+                        <div
+                          className={`px-6 py-4 rounded-2xl ${
+                            message.sender === 'user'
+                              ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
+                              : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
+                          }`}
+                        >
+                          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{message.text}</pre>
+                          {message.isTransaction && message.transactionData && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <button
+                                onClick={() => message.transactionData && executeSwap(message.transactionData)}
+                                className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                <span>⚡</span>
+                                Execute Swap
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`flex items-end ${message.sender === 'user' ? 'order-1 mr-3' : 'order-2 ml-3'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                          message.sender === 'user' 
+                            ? 'bg-gray-300 text-gray-700' 
+                            : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white'
+                        }`}>
+                          {message.sender === 'user' ? 'U' : 'R'}
+                        </div>
                       </div>
                     </div>
-                    <div className={`flex items-end ${message.sender === 'user' ? 'order-1 mr-3' : 'order-2 ml-3'}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                        message.sender === 'user' 
-                          ? 'bg-gray-300 text-gray-700' 
-                          : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white'
-                      }`}>
-                        {message.sender === 'user' ? 'U' : 'R'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
               </div>
             )}
           </div>
 
           {/* Input Area */}
-          <div className="p-6 bg-white border-t border-gray-200">
+          <div className="flex-shrink-0 p-6 bg-white border-t border-gray-200">
             <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
               <div className="flex gap-4">
                 <div className="flex-1 relative">

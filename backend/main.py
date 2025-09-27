@@ -25,6 +25,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "endpoints": ["/health", "/ask-agent"]}
+
 class MessageRequest(BaseModel):
     message: str
     chainId: int | None = None

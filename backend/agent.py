@@ -69,7 +69,11 @@ def query_rwa_database(subgraph_url: str):
         query = {
             "query": "{ investments(first: 5, orderBy: timestamp, orderDirection: desc) { id investor amount timestamp } }"
         }
-        response = requests.post(subgraph_url, json=query, timeout=10)
+        headers = {"Content-Type": "application/json"}
+        api_key = os.getenv("SUBGRAPH_API_KEY")
+        if api_key:
+            headers["X-API-KEY"] = api_key
+        response = requests.post(subgraph_url, json=query, headers=headers, timeout=15)
         response.raise_for_status()
         data = response.json()
         if isinstance(data, dict) and data.get("data") and data["data"].get("investments") is not None:

@@ -4,13 +4,13 @@ schema:
 dataSources:
   - kind: ethereum
     name: MockRWAPool
-    network: amoy # Make sure this is set to amoy
+    network: sepolia # Recommended: Studio-supported testnet
     source:
-      # PASTE YOUR DEPLOYED CONTRACT ADDRESS HERE
-      address: "0x0000000000000000000000000000000000000000"
+      # Deployed Sepolia contract
+      address: "0x09cd604be56dbd6e202512ed0c12ccc569591d3c"
       abi: MockRWAPool
-      # PASTE YOUR DEPLOYMENT BLOCK NUMBER HERE
-      startBlock: 0
+      # Sepolia deployment block
+      startBlock: 9290839
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

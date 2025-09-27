@@ -31,6 +31,7 @@ export default function Home() {
     signer: null
   });
   const [isConnecting, setIsConnecting] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   // Connect wallet
@@ -188,97 +189,211 @@ export default function Home() {
     setInputText("");
   };
 
+  const quickActions = [
+    { title: "Show Investments", query: "show investments", icon: "📊" },
+    { title: "Investment Options", query: "show me investment options", icon: "💼" },
+    { title: "Invest 100 USDC", query: "invest 100 USDC in TCB-001", icon: "💰" },
+    { title: "Portfolio Status", query: "show my portfolio", icon: "📈" }
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              RWA-GPT
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              AI-powered Real-World Asset conversational agent
-            </p>
-          </div>
-          <div>
-            {wallet.address ? (
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Connected: {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
-              </div>
-            ) : (
-              <button
-                onClick={connectWallet}
-                disabled={isConnecting}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
-              >
-                {isConnecting ? "Connecting..." : "Connect Wallet"}
-              </button>
-            )}
+    <div className="h-screen flex bg-gray-50">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-gray-900 text-white transition-all duration-300 flex flex-col`}>
+        {/* Logo */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-pink-500 rounded-lg flex items-center justify-center text-white font-bold">
+              R
+            </div>
+            {sidebarOpen && <span className="font-semibold">RWA-GPT</span>}
           </div>
         </div>
-      </header>
 
-      {/* Chat Interface */}
-      <div className="max-w-4xl mx-auto h-[calc(100vh-120px)] flex flex-col">
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
-              <p className="text-lg mb-2">Welcome to RWA-GPT!</p>
-              <p className="text-sm">Ask me about RWA investments, show me the latest data, or request a swap.</p>
-              <div className="mt-4 text-xs space-y-1">
-                <p>Try: "show investments"</p>
-                <p>Try: "invest 100 USDC in TCB-001"</p>
-              </div>
-            </div>
-          ) : (
-            messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                    message.sender === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                  {message.isTransaction && message.transactionData && (
-                    <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <button
-                        onClick={() => executeSwap(message.transactionData)}
-                        className="w-full px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
-                      >
-                        Execute Swap
-                      </button>
-                    </div>
-                  )}
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <div className="space-y-2">
+            <button 
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-orange-500 text-white"
+              onClick={() => setMessages([])}
+            >
+              <span>💬</span>
+              {sidebarOpen && <span>AI Chat Helper</span>}
+            </button>
+            
+            {sidebarOpen && (
+              <div className="mt-6">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h3>
+                <div className="space-y-1">
+                  {quickActions.map((action, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setInputText(action.query);
+                        const event = { preventDefault: () => {} } as React.FormEvent;
+                        handleSubmit(event);
+                      }}
+                      className="w-full flex items-center gap-3 p-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                    >
+                      <span>{action.icon}</span>
+                      <span>{action.title}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))
+            )}
+          </div>
+        </nav>
+
+        {/* Wallet Status */}
+        <div className="p-4 border-t border-gray-700">
+          {wallet.address ? (
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+              {sidebarOpen && (
+                <span className="text-xs text-gray-400">
+                  {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
+                </span>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={connectWallet}
+              disabled={isConnecting}
+              className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
+            >
+              {isConnecting ? "..." : sidebarOpen ? "Connect Wallet" : "🔗"}
+            </button>
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Ask about RWA investments..."
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
-            <button
-              type="submit"
-              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            >
-              Send
-            </button>
-          </form>
+        {/* Toggle Sidebar */}
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute top-4 -right-3 w-6 h-6 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-white text-xs"
+        >
+          {sidebarOpen ? '←' : '→'}
+        </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">AI Chat Helper</h1>
+              <p className="text-sm text-gray-500">Real-World Asset conversational agent</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500">
+                {messages.length}/50
+              </div>
+              <button className="p-2 hover:bg-gray-100 rounded-lg">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Chat Area */}
+        <div className="flex-1 flex flex-col bg-gradient-to-br from-orange-50 via-pink-50 to-purple-50">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {messages.length === 0 ? (
+              <div className="max-w-2xl mx-auto text-center py-12">
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
+                  R
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to RWA-GPT</h2>
+                <p className="text-gray-600 mb-8">Your AI-powered Real-World Asset conversational agent. Ask me about investments, show data, or request swaps.</p>
+                
+                <div className="grid grid-cols-2 gap-4 max-w-md mx-auto">
+                  {quickActions.map((action, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        setInputText(action.query);
+                        const event = { preventDefault: () => {} } as React.FormEvent;
+                        handleSubmit(event);
+                      }}
+                      className="p-4 bg-white rounded-xl border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all group"
+                    >
+                      <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">{action.icon}</div>
+                      <div className="text-sm font-medium text-gray-900">{action.title}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="max-w-4xl mx-auto space-y-6">
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-2xl ${message.sender === 'user' ? 'order-2' : 'order-1'}`}>
+                      <div
+                        className={`px-6 py-4 rounded-2xl ${
+                          message.sender === 'user'
+                            ? 'bg-gradient-to-r from-orange-500 to-pink-500 text-white'
+                            : 'bg-white border border-gray-200 text-gray-900 shadow-sm'
+                        }`}
+                      >
+                        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{message.text}</pre>
+                        {message.isTransaction && message.transactionData && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => executeSwap(message.transactionData)}
+                              className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              <span>⚡</span>
+                              Execute Swap
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`flex items-end ${message.sender === 'user' ? 'order-1 mr-3' : 'order-2 ml-3'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                        message.sender === 'user' 
+                          ? 'bg-gray-300 text-gray-700' 
+                          : 'bg-gradient-to-r from-orange-400 to-pink-500 text-white'
+                      }`}>
+                        {message.sender === 'user' ? 'U' : 'R'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="p-6 bg-white border-t border-gray-200">
+            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="Ask about RWA investments..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!inputText.trim()}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-xl hover:from-orange-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                >
+                  Send
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
-import { BigInt, log } from "@graphprotocol/graph-ts";
-import { Invested as InvestedEvent, YieldDistributed as YieldDistributedEvent } from "../generated/RWAPrivateCredit/RWAPrivateCredit";
+import { BigInt } from "@graphprotocol/graph-ts";
+import { Invested as InvestedEvent, YieldDistributed as YieldDistributedEvent } from "../generated/MockRWAPool/MockRWAPool";
 import { Pool, Investment, YieldDistribution } from "../generated/schema";
 
 export function handleInvested(event: InvestedEvent): void {

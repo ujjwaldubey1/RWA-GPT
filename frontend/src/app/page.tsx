@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ethers } from "ethers";
 
 declare global {
   interface Window {
-    ethereum?: any;
+    ethereum?: {
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      send: (method: string, params?: unknown[]) => Promise<unknown>;
+    };
   }
 }
 
@@ -13,7 +16,7 @@ interface Message {
   sender: 'user' | 'agent';
   text: string;
   isTransaction?: boolean;
-  transactionData?: any;
+  transactionData?: Record<string, unknown>;
 }
 
 interface WalletState {
@@ -42,7 +45,6 @@ export default function Home() {
         const provider = new ethers.BrowserProvider(window.ethereum);
         const accounts = await provider.send("eth_requestAccounts", []);
         const signer = await provider.getSigner();
-        const network = await provider.getNetwork();
         
         setWallet({
           address: accounts[0],
@@ -61,7 +63,7 @@ export default function Home() {
   };
 
   // Execute swap transaction
-  const executeSwap = async (transactionData: any) => {
+  const executeSwap = async (transactionData: Record<string, unknown>) => {
     if (!wallet.signer) {
       alert("Please connect your wallet first");
       return;
@@ -69,7 +71,7 @@ export default function Home() {
 
     try {
       // Parse the 1inch transaction data properly
-      let txParams: any = {};
+      let txParams: Record<string, unknown> = {};
       
       if (transactionData.tx) {
         // 1inch v5 format
@@ -113,7 +115,7 @@ export default function Home() {
       
       const confirmedMessage: Message = {
         sender: 'agent',
-        text: `Transaction confirmed! Hash: ${receipt.hash}\nBlock: ${receipt.blockNumber}`,
+        text: `Transaction confirmed! Hash: ${receipt?.hash}\nBlock: ${receipt?.blockNumber}`,
         isTransaction: false
       };
       
@@ -177,7 +179,7 @@ export default function Home() {
       };
 
       setMessages(prev => [...prev, agentMessage]);
-    } catch (error) {
+    } catch {
       const errorMessage: Message = {
         sender: 'agent',
         text: "Sorry, I couldn't connect to the backend. Please make sure the server is running.",

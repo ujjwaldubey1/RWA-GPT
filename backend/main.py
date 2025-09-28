@@ -22,6 +22,77 @@ load_dotenv()
 # In-memory transaction storage (in production, use a database)
 TRANSACTION_HISTORY = []
 
+def update_transaction_status(tx_hash: str, status: str = "confirmed"):
+    """Update transaction status after blockchain confirmation"""
+    print(f"Updating transaction {tx_hash} to {status}")
+    print(f"Current transaction history: {TRANSACTION_HISTORY}")
+    
+    for tx in TRANSACTION_HISTORY:
+        print(f"Checking transaction: {tx.get('tx_hash')} == {tx_hash}")
+        if tx.get("tx_hash") == tx_hash:
+            tx["status"] = status
+            tx["confirmed_at"] = datetime.now().isoformat()
+            print(f"Updated transaction {tx_hash} to {status}")
+            return True
+    
+    print(f"Transaction {tx_hash} not found in history")
+    return False
+
+def cleanup_duplicate_transactions():
+    """Remove duplicate transactions and merge x402 payments with blockchain transactions"""
+    global TRANSACTION_HISTORY
+    
+    # Group transactions by x402 payment ID
+    x402_groups = {}
+    standalone_transactions = []
+    
+    for tx in TRANSACTION_HISTORY:
+        x402_id = tx.get("x402_payment_id")
+        if x402_id:
+            if x402_id not in x402_groups:
+                x402_groups[x402_id] = []
+            x402_groups[x402_id].append(tx)
+        else:
+            standalone_transactions.append(tx)
+    
+    # Merge transactions with same x402 payment ID
+    cleaned_transactions = []
+    
+    for x402_id, group in x402_groups.items():
+        # Find the transaction with blockchain hash
+        blockchain_tx = None
+        x402_only_tx = None
+        
+        for tx in group:
+            if tx.get("tx_hash"):
+                blockchain_tx = tx
+            else:
+                x402_only_tx = tx
+        
+        if blockchain_tx and x402_only_tx:
+            # Merge the transactions
+            merged_tx = {
+                **x402_only_tx,  # Start with x402 transaction
+                "tx_hash": blockchain_tx["tx_hash"],  # Add blockchain hash
+                "status": blockchain_tx["status"],  # Use blockchain status
+                "confirmed_at": blockchain_tx.get("confirmed_at")
+            }
+            cleaned_transactions.append(merged_tx)
+            print(f"Merged x402 {x402_id} with blockchain transaction")
+        elif blockchain_tx:
+            cleaned_transactions.append(blockchain_tx)
+        elif x402_only_tx:
+            cleaned_transactions.append(x402_only_tx)
+    
+    # Add standalone transactions
+    cleaned_transactions.extend(standalone_transactions)
+    
+    # Sort by timestamp (newest first)
+    cleaned_transactions.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    TRANSACTION_HISTORY = cleaned_transactions
+    print(f"Cleaned up transactions. New count: {len(TRANSACTION_HISTORY)}")
+
 # Enhanced RWA Investment Database with detailed options
 RWA_INVESTMENT_OPTIONS = {
     "treasury_bills": {
@@ -307,7 +378,87 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"status": "ok", "endpoints": ["/health", "/ask-agent"]}
+    return {"status": "ok", "endpoints": ["/health", "/ask-agent", "/update-transaction", "/store-transaction"]}
+
+@app.post("/update-transaction")
+async def update_transaction(request: dict):
+    """Update transaction status after blockchain confirmation"""
+    try:
+        tx_hash = request.get("tx_hash")
+        status = request.get("status", "confirmed")
+        
+        if not tx_hash:
+            return {"error": "tx_hash is required"}
+        
+        update_transaction_status(tx_hash, status)
+        
+        return {
+            "success": True,
+            "message": f"Transaction {tx_hash} updated to {status}",
+            "updated_at": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/store-transaction")
+async def store_transaction(request: dict):
+    """Store transaction hash when transaction is first submitted"""
+    try:
+        tx_hash = request.get("tx_hash")
+        amount = request.get("amount", "unknown")
+        asset_id = request.get("asset_id", "RE-001")
+        status = request.get("status", "pending")
+        x402_payment_id = request.get("x402_payment_id")
+        
+        if not tx_hash:
+            return {"error": "tx_hash is required"}
+        
+        print(f"Storing transaction hash: {tx_hash}")
+        print(f"x402 payment ID: {x402_payment_id}")
+        print(f"Current history before update: {TRANSACTION_HISTORY}")
+        
+        # Find the most recent pending transaction with matching x402 payment ID
+        updated = False
+        for tx in reversed(TRANSACTION_HISTORY):
+            # Match by x402 payment ID if provided, otherwise match by pending status
+            if x402_payment_id and tx.get("x402_payment_id") == x402_payment_id:
+                tx["tx_hash"] = tx_hash
+                updated = True
+                print(f"Updated x402 transaction {x402_payment_id} with hash: {tx_hash}")
+                break
+            elif not x402_payment_id and tx["status"] == "pending" and tx["tx_hash"] is None:
+                tx["tx_hash"] = tx_hash
+                updated = True
+                print(f"Updated pending transaction with hash: {tx_hash}")
+                break
+        
+        if not updated:
+            print("No matching transaction found, creating new entry")
+            # Create a new transaction record if none found
+            new_transaction = {
+                "timestamp": datetime.now().isoformat(),
+                "user_address": "unknown",
+                "amount": amount,
+                "asset_id": asset_id,
+                "transaction_type": "investment",
+                "x402_payment_id": x402_payment_id,
+                "status": status,
+                "chain_id": 80002,
+                "tx_hash": tx_hash,
+                "confirmed_at": None
+            }
+            TRANSACTION_HISTORY.append(new_transaction)
+            print(f"Created new transaction record: {new_transaction}")
+        
+        print(f"History after update: {TRANSACTION_HISTORY}")
+        
+        return {
+            "success": True,
+            "message": f"Transaction hash {tx_hash} stored",
+            "stored_at": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 class MessageRequest(BaseModel):
     message: str
@@ -326,6 +477,9 @@ async def ask_agent(request: MessageRequest):
         
         # Check if user wants to see transaction history
         if any(keyword in message for keyword in ["transaction history", "my transactions", "transaction list", "history", "past transactions"]):
+            # Clean up duplicate transactions before showing history
+            cleanup_duplicate_transactions()
+            
             user_address = request.fromAddress or "0x1234567890123456789012345678901234567890"
             
             # Filter transactions for this user
@@ -349,7 +503,15 @@ async def ask_agent(request: MessageRequest):
                 response_text += f"   🏠 Asset: {tx['asset_id']}\n"
                 response_text += f"   📅 Time: {tx['timestamp'][:19].replace('T', ' ')}\n"
                 response_text += f"   🔗 Chain: Polygon Amoy (ID: {tx['chain_id']})\n"
-                response_text += f"   📊 Status: {tx['status']}\n"
+                
+                # Status with emoji
+                status_emoji = "✅" if tx['status'] == "confirmed" else "⏳" if tx['status'] == "pending" else "❌"
+                response_text += f"   📊 Status: {status_emoji} {tx['status'].title()}\n"
+                
+                if tx.get('tx_hash'):
+                    response_text += f"   🔗 TX Hash: {tx['tx_hash']}\n"
+                if tx.get('confirmed_at'):
+                    response_text += f"   ✅ Confirmed: {tx['confirmed_at'][:19].replace('T', ' ')}\n"
                 if tx.get('x402_payment_id'):
                     response_text += f"   🤖 x402 ID: {tx['x402_payment_id']}\n"
                 response_text += "\n"
@@ -508,7 +670,9 @@ async def ask_agent(request: MessageRequest):
                     "transaction_type": "investment",
                     "x402_payment_id": x402_payment_id,
                     "status": "pending",
-                    "chain_id": chain_id
+                    "chain_id": chain_id,
+                    "tx_hash": None,  # Will be updated when transaction is executed
+                    "confirmed_at": None
                 }
                 TRANSACTION_HISTORY.append(transaction_record)
 

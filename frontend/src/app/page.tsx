@@ -200,10 +200,35 @@ export default function Home() {
       console.log("Sending transaction with params:", txParams);
 
       const txResponse = await wallet.signer.sendTransaction(txParams);
+      const txHash = (txResponse as { hash: string }).hash;
+
+      // Store transaction hash in backend for tracking
+      try {
+        // Extract x402 payment ID from transaction metadata if available
+        const x402PaymentId = transactionData.x402_metadata?.x402_payment_id;
+        
+        await fetch('http://localhost:8000/store-transaction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tx_hash: txHash,
+            amount: transactionData.amount || 'unknown',
+            asset_id: 'RE-001',
+            status: 'pending',
+            x402_payment_id: x402PaymentId
+          })
+        });
+        
+        console.log('Stored transaction with x402 ID:', x402PaymentId);
+      } catch (storeError) {
+        console.log('Could not store transaction:', storeError);
+      }
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `🚀 Transaction submitted! Hash: ${(txResponse as { hash: string }).hash}\n⏳ Waiting for confirmation...`,
+        text: `🚀 Transaction submitted! Hash: ${txHash}\n⏳ Waiting for confirmation...`,
         isTransaction: false
       };
       
@@ -211,6 +236,22 @@ export default function Home() {
 
       // Wait for confirmation
       const receipt = await (txResponse as { wait: () => Promise<{ hash: string; blockNumber: number }> }).wait();
+      
+      // Update transaction status in backend
+      try {
+        await fetch('http://localhost:8000/update-transaction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tx_hash: receipt?.hash,
+            status: 'confirmed'
+          })
+        });
+      } catch (updateError) {
+        console.log('Could not update transaction status:', updateError);
+      }
       
       const confirmedMessage: Message = {
         sender: 'agent',

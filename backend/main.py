@@ -9,6 +9,8 @@ import re
 import requests
 from datetime import datetime
 import random
+import asyncio
+import logging
 # Optional x402 integration - doesn't break existing functionality
 try:
     from x402_integration import X402PaymentProcessor, enhance_existing_payment_with_x402
@@ -16,11 +18,30 @@ try:
 except ImportError:
     X402_AVAILABLE = False
 
+# Optional Supabase integration - doesn't break existing functionality
+try:
+    from supabase_client import insert_message, fetch_messages, initialize_supabase
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
 
 # In-memory transaction storage (in production, use a database)
 TRANSACTION_HISTORY = []
+
+async def store_agent_response(response_text: str) -> None:
+    """Helper function to store agent response in Supabase if available"""
+    if SUPABASE_AVAILABLE:
+        try:
+            await insert_message(
+                role="agent",
+                content=response_text,
+                timestamp=datetime.utcnow().isoformat() + "Z"
+            )
+        except Exception as e:
+            logging.warning(f"Failed to store agent response in Supabase: {e}")
 
 def update_transaction_status(tx_hash: str, status: str = "confirmed"):
     """Update transaction status after blockchain confirmation"""
@@ -475,6 +496,17 @@ async def ask_agent(request: MessageRequest):
     try:
         message = request.message.lower()
         
+        # Store user message in Supabase if available
+        if SUPABASE_AVAILABLE:
+            try:
+                await insert_message(
+                    role="user",
+                    content=request.message,
+                    timestamp=datetime.utcnow().isoformat() + "Z"
+                )
+            except Exception as e:
+                logging.warning(f"Failed to store user message in Supabase: {e}")
+        
         # Check if user wants to see transaction history
         if any(keyword in message for keyword in ["transaction history", "my transactions", "transaction list", "history", "past transactions"]):
             # Clean up duplicate transactions before showing history
@@ -486,8 +518,10 @@ async def ask_agent(request: MessageRequest):
             user_transactions = [tx for tx in TRANSACTION_HISTORY if tx["user_address"].lower() == user_address.lower()]
             
             if not user_transactions:
+                response_text = "📋 **Your Transaction History**\n\nNo transactions found yet.\n\n💡 Try making an investment first:\n• 'invest 100 USDC in RE-001'\n• 'invest 50 USDC in RE-002'"
+                await store_agent_response(response_text)
                 return MessageResponse(
-                    response="📋 **Your Transaction History**\n\nNo transactions found yet.\n\n💡 Try making an investment first:\n• 'invest 100 USDC in RE-001'\n• 'invest 50 USDC in RE-002'",
+                    response=response_text,
                     is_transaction=False
                 )
             
@@ -521,6 +555,7 @@ async def ask_agent(request: MessageRequest):
             response_text += "• 'show real estate investments' - View available options\n"
             response_text += "• 'transaction history' - View this list again\n"
             
+            await store_agent_response(response_text)
             return MessageResponse(
                 response=response_text,
                 is_transaction=False
@@ -532,8 +567,10 @@ async def ask_agent(request: MessageRequest):
             if subgraph_url:
                 live_data = query_rwa_database(subgraph_url)
                 if live_data:
+                    response_text = f"Raw investment data from subgraph:\n{json.dumps(live_data, indent=2)}"
+                    await store_agent_response(response_text)
                     return MessageResponse(
-                        response=f"Raw investment data from subgraph:\n{json.dumps(live_data, indent=2)}",
+                        response=response_text,
                         is_transaction=False
                     )
                 # Fall back to curated options when subgraph has no data yet
@@ -563,8 +600,10 @@ async def ask_agent(request: MessageRequest):
     "status": "Active"
   }
 ]"""
+                response_text = f"No indexed investments yet. Here are curated options you can try now:\n{mock_investments}"
+                await store_agent_response(response_text)
                 return MessageResponse(
-                    response=f"No indexed investments yet. Here are curated options you can try now:\n{mock_investments}",
+                    response=response_text,
                     is_transaction=False
                 )
             else:
@@ -595,8 +634,10 @@ async def ask_agent(request: MessageRequest):
     "status": "Active"
   }
 ]"""
+                response_text = f"Available RWA Investment Options:\n{mock_investments}\n\nTo invest, try: 'invest 100 USDC in TCB-001'"
+                await store_agent_response(response_text)
                 return MessageResponse(
-                    response=f"Available RWA Investment Options:\n{mock_investments}\n\nTo invest, try: 'invest 100 USDC in TCB-001'",
+                    response=response_text,
                     is_transaction=False
                 )
         
@@ -743,13 +784,39 @@ async def ask_agent(request: MessageRequest):
                 response_text += "🎯 **Real-time data updated every request**\n"
                 response_text += "💡 Try: 'real estate investments' for detailed property info\n"
                 
-                return MessageResponse(
-                    response=response_text,
-                    is_transaction=False
-                )
+            response = MessageResponse(
+                response=response_text,
+                is_transaction=False
+            )
+            
+            # Store agent response in Supabase if available
+            if SUPABASE_AVAILABLE:
+                try:
+                    await insert_message(
+                        role="agent",
+                        content=response.response,
+                        timestamp=datetime.utcnow().isoformat() + "Z"
+                    )
+                except Exception as e:
+                    logging.warning(f"Failed to store agent response in Supabase: {e}")
+            
+            return response
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/messages")
+async def get_messages(limit: int = 50):
+    """Fetch chat messages from Supabase database"""
+    if not SUPABASE_AVAILABLE:
+        return {"error": "Supabase not available", "messages": []}
+    
+    try:
+        messages = await fetch_messages(limit=limit)
+        return {"messages": messages, "count": len(messages)}
+    except Exception as e:
+        logging.error(f"Failed to fetch messages: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch messages: {e}")
 
 @app.get("/health")
 async def health_check():

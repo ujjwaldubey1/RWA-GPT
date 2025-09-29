@@ -205,7 +205,8 @@ export default function Home() {
       // Store transaction hash in backend for tracking
       try {
         // Extract x402 payment ID from transaction metadata if available
-        const x402PaymentId = transactionData.x402_metadata?.x402_payment_id;
+        const x402Metadata = (transactionData as Record<string, unknown>).x402_metadata as Record<string, unknown> | undefined;
+        const x402PaymentId = x402Metadata?.x402_payment_id;
         
         await fetch('http://localhost:8000/store-transaction', {
           method: 'POST',

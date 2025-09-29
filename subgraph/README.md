@@ -24,3 +24,4 @@ Notes
 
 - network: amoy in subgraph.yaml
 - After deploy, copy Queries URL → set SUBGRAPH_URL in backend/.env
+

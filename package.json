@@ -1,0 +1,30 @@
+{
+  "name": "rwa-gpt-pushchain",
+  "version": "1.0.0",
+  "description": "RWA-GPT migrated to Push Chain with cross-chain compatibility",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:pushchain": "hardhat run scripts/test-pushchain.js --network pushchain",
+    "deploy:pushchain": "hardhat run scripts/deploy.js --network pushchain",
+    "deploy:polygon": "hardhat run scripts/deploy.js --network polygonAmoy",
+    "verify:pushchain": "hardhat verify --network pushchain",
+    "verify:polygon": "hardhat verify --network polygonAmoy",
+    "node": "hardhat node",
+    "clean": "hardhat clean"
+  },
+  "keywords": ["pushchain", "rwa", "defi", "cross-chain"],
+  "author": "RWA-GPT Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "hardhat": "^2.19.0",
+    "dotenv": "^16.3.1"
+  },
+  "dependencies": {
+    "@pushprotocol/push-chain-sdk": "^1.0.0",
+    "ethers": "^6.15.0"
+  }
+}

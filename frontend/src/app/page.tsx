@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { ethers } from "ethers";
+import { 
+  pushChainProvider, 
+  PUSH_CHAIN_CONFIG, 
+  PUSH_CHAIN_ERRORS,
+  formatAddress,
+  formatBalance 
+} from "../utils/pushChain";
 
 declare global {
   interface Window {
@@ -23,6 +30,8 @@ interface WalletState {
   address: string | null;
   provider: ethers.BrowserProvider | null;
   signer: ethers.JsonRpcSigner | null;
+  balance: string;
+  isConnectedToPushChain: boolean;
 }
 
 export default function Home() {
@@ -31,7 +40,9 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletState>({
     address: null,
     provider: null,
-    signer: null
+    signer: null,
+    balance: "0",
+    isConnectedToPushChain: false
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -47,125 +58,79 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  // Connect wallet
+  // Connect wallet to Push Chain
   const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        setIsConnecting(true);
-        
-        // First, try to switch to Polygon Amoy Testnet
-        try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x13882' }], // 80002 in hex
-          });
-        } catch {
-          // If switch fails, try to add the network
-          try {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x13882',
-                chainName: 'Polygon Amoy Testnet',
-                nativeCurrency: {
-                  name: 'MATIC',
-                  symbol: 'MATIC',
-                  decimals: 18,
-                },
-                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
-                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
-              }],
-            });
-          } catch {
-            console.log('Could not add network, proceeding with current network');
-          }
-        }
-        
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const accounts = await provider.send("eth_requestAccounts", []);
-        const signer = await provider.getSigner();
-        
-        setWallet({
-          address: accounts[0],
-          provider,
-          signer
-        });
-      } catch (error) {
-        console.error("Error connecting wallet:", error);
-        alert("Failed to connect wallet");
-      } finally {
-        setIsConnecting(false);
+    try {
+      setIsConnecting(true);
+      
+      // Use Push Chain provider
+      const { address, provider, signer } = await pushChainProvider.connect();
+      
+      // Get balance
+      const balance = await pushChainProvider.getBalance();
+      
+      // Check if connected to Push Chain
+      const isConnectedToPushChain = await pushChainProvider.isConnectedToPushChain();
+      
+      setWallet({
+        address,
+        provider,
+        signer,
+        balance,
+        isConnectedToPushChain
+      });
+      
+      // Show success message
+      const successMessage: Message = {
+        sender: 'agent',
+        text: `✅ Connected to Push Chain!\n💰 Balance: ${formatBalance(balance)}\n🌐 Network: ${PUSH_CHAIN_CONFIG.chainName}`,
+        isTransaction: false
+      };
+      setMessages(prev => [...prev, successMessage]);
+      
+    } catch (error: any) {
+      console.error("Error connecting to Push Chain:", error);
+      
+      let errorMsg = PUSH_CHAIN_ERRORS.WALLET_NOT_CONNECTED;
+      if (error.message.includes('network')) {
+        errorMsg = PUSH_CHAIN_ERRORS.NETWORK_NOT_FOUND;
+      } else if (error.message.includes('rejected')) {
+        errorMsg = PUSH_CHAIN_ERRORS.USER_REJECTED;
       }
-    } else {
-      alert("Please install MetaMask or another Web3 wallet");
+      
+      const errorMessage: Message = {
+        sender: 'agent',
+        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install MetaMask or another Web3 wallet\n• Add Push Chain testnet to your wallet\n• Get test PUSH tokens from the faucet`,
+        isTransaction: false
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
-  // Execute swap transaction
+  // Execute swap transaction on Push Chain
   const executeSwap = async (transactionData: Record<string, unknown>) => {
     if (!wallet.signer) {
-      alert("Please connect your wallet first");
+      const errorMessage: Message = {
+        sender: 'agent',
+        text: `❌ ${PUSH_CHAIN_ERRORS.WALLET_NOT_CONNECTED}`,
+        isTransaction: false
+      };
+      setMessages(prev => [...prev, errorMessage]);
       return;
     }
 
     try {
-      // Check if we're on the correct network (Polygon Amoy Testnet)
-      const currentChainId = await wallet.signer.provider?.getNetwork();
-      const amoyTestnetChainId = 80002; // Polygon Amoy Testnet
-      
-      if (Number(currentChainId?.chainId) !== amoyTestnetChainId) {
-        // Request network switch to Polygon Amoy Testnet
-        try {
-          await window.ethereum?.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x13882' }], // 80002 in hex
-          });
-          
-          const switchMessage: Message = {
-            sender: 'agent',
-            text: `✅ Switched to Polygon Amoy Testnet for testing!`,
-            isTransaction: false
-          };
-          setMessages(prev => [...prev, switchMessage]);
-          
-          // Wait a moment for network switch
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } catch {
-          // If switch fails, try to add Polygon Amoy Testnet
-          try {
-            await window.ethereum?.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x13882',
-                chainName: 'Polygon Amoy Testnet',
-                nativeCurrency: {
-                  name: 'MATIC',
-                  symbol: 'MATIC',
-                  decimals: 18,
-                },
-                rpcUrls: ['https://rpc-amoy.polygon.technology/'],
-                blockExplorerUrls: ['https://amoy.polygonscan.com/'],
-              }],
-            });
-            
-            const addMessage: Message = {
-              sender: 'agent',
-              text: `✅ Added and switched to Polygon Amoy Testnet!`,
-              isTransaction: false
-            };
-            setMessages(prev => [...prev, addMessage]);
-            
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } catch {
-            const networkErrorMessage: Message = {
-              sender: 'agent',
-              text: `❌ Please manually switch to Polygon Amoy Testnet in your wallet. This is required for testing mode.`,
-              isTransaction: false
-            };
-            setMessages(prev => [...prev, networkErrorMessage]);
-            return;
-          }
-        }
+      // Check if we're on Push Chain
+      if (!wallet.isConnectedToPushChain) {
+        const networkErrorMessage: Message = {
+          sender: 'agent',
+          text: `❌ ${PUSH_CHAIN_ERRORS.WRONG_NETWORK}\n\n💡 Please switch to Push Chain testnet in your wallet.`,
+          isTransaction: false
+        };
+        setMessages(prev => [...prev, networkErrorMessage]);
+        return;
       }
 
       // Parse the 1inch transaction data properly
@@ -199,7 +164,13 @@ export default function Home() {
 
       console.log("Sending transaction with params:", txParams);
 
-      const txResponse = await wallet.signer.sendTransaction(txParams);
+      // Use Push Chain provider for gas abstraction
+      const txResponse = await pushChainProvider.executeTransaction({
+        to: txParams.to as string,
+        value: txParams.value as string,
+        data: txParams.data as string,
+        gasLimit: txParams.gasLimit as string,
+      });
       const txHash = (txResponse as { hash: string }).hash;
 
       // Store transaction hash in backend for tracking
@@ -229,7 +200,7 @@ export default function Home() {
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `🚀 Transaction submitted! Hash: ${txHash}\n⏳ Waiting for confirmation...`,
+        text: `🚀 Transaction submitted to Push Chain! Hash: ${txHash}\n⏳ Waiting for confirmation...\n💡 Gas abstraction active - no gas fees required!`,
         isTransaction: false
       };
       
@@ -256,29 +227,31 @@ export default function Home() {
       
       const confirmedMessage: Message = {
         sender: 'agent',
-        text: `✅ Transaction confirmed! \n🔗 Hash: ${receipt?.hash}\n📦 Block: ${receipt?.blockNumber}\n🎉 Your RWA investment is complete!`,
+        text: `✅ Transaction confirmed on Push Chain! \n🔗 Hash: ${receipt?.hash}\n📦 Block: ${receipt?.blockNumber}\n🎉 Your RWA investment is complete!\n🌐 View on explorer: ${PUSH_CHAIN_CONFIG.blockExplorerUrl}/tx/${receipt?.hash}`,
         isTransaction: false
       };
       
       setMessages(prev => [...prev, confirmedMessage]);
     } catch (error: unknown) {
       console.error("Transaction failed:", error);
-      let errorMsg = "❌ Transaction failed";
+      let errorMsg = "❌ Transaction failed on Push Chain";
       
       if (error && typeof error === 'object' && 'code' in error) {
         const errorCode = (error as { code: number }).code;
         if (errorCode === -32603) {
-          errorMsg = "❌ Transaction rejected by network. Please ensure you have enough MATIC for gas fees on Polygon network.";
+          errorMsg = "❌ Transaction rejected by Push Chain network. Gas abstraction should handle fees automatically.";
         } else if (errorCode === 4001) {
-          errorMsg = "❌ Transaction rejected by user";
+          errorMsg = PUSH_CHAIN_ERRORS.USER_REJECTED;
         } else if (errorCode === -32000) {
-          errorMsg = "❌ Insufficient funds for gas. Please add test MATIC to your wallet from Polygon Amoy faucet.";
+          errorMsg = "❌ Insufficient funds. Please get test PUSH tokens from the faucet.";
         }
       }
       if (error && typeof error === 'object' && 'message' in error) {
         const errorMessage = (error as { message: string }).message;
         if (errorMessage.includes('insufficient funds')) {
-          errorMsg = "❌ Insufficient funds for gas. Please add test MATIC from Polygon Amoy faucet: https://faucet.polygon.technology/";
+          errorMsg = "❌ Insufficient funds. Please get test PUSH tokens from the Push Chain faucet.";
+        } else if (errorMessage.includes('network')) {
+          errorMsg = PUSH_CHAIN_ERRORS.WRONG_NETWORK;
         } else {
           errorMsg = `❌ Transaction failed: ${errorMessage}`;
         }
@@ -286,7 +259,7 @@ export default function Home() {
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: errorMsg + "\n\n💡 Tip: Get free test MATIC from https://faucet.polygon.technology/ for Amoy testnet!",
+        text: errorMsg + `\n\n💡 Push Chain Benefits:\n• Gas abstraction - no gas fees required!\n• Cross-chain compatibility\n• Universal dApp reach\n• Get test PUSH tokens from the faucet`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -402,12 +375,25 @@ export default function Home() {
         {/* Wallet Status */}
         <div className="p-4 border-t border-gray-700">
           {wallet.address ? (
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-              {sidebarOpen && (
-                <span className="text-xs text-gray-400">
-                  {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
-                </span>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${wallet.isConnectedToPushChain ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+                {sidebarOpen && (
+                  <div className="text-xs text-gray-400">
+                    <div>{formatAddress(wallet.address)}</div>
+                    <div className="text-xs text-gray-500">
+                      {wallet.isConnectedToPushChain ? 'Push Chain' : 'Other Network'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatBalance(wallet.balance)}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {!wallet.isConnectedToPushChain && sidebarOpen && (
+                <div className="text-xs text-yellow-400">
+                  Switch to Push Chain
+                </div>
               )}
             </div>
           ) : (
@@ -416,7 +402,7 @@ export default function Home() {
               disabled={isConnecting}
               className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
             >
-              {isConnecting ? "..." : sidebarOpen ? "Connect Wallet" : "🔗"}
+              {isConnecting ? "..." : sidebarOpen ? "Connect to Push Chain" : "🔗"}
             </button>
           )}
         </div>
@@ -464,11 +450,12 @@ export default function Home() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to RWA-GPT</h2>
                 <p className="text-gray-600 mb-4">Your AI-powered Real-World Asset conversational agent. Ask me about investments, show data, or request swaps.</p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-sm">
-                  <div className="font-medium text-blue-900 mb-2">🧪 Testnet Mode Active</div>
+                  <div className="font-medium text-blue-900 mb-2">🚀 Push Chain Integration Active</div>
                   <div className="text-blue-700">
-                    • System uses <strong>Polygon Amoy Testnet</strong><br/>
-                    • Get free test MATIC from <a href="https://faucet.polygon.technology/" target="_blank" className="text-blue-600 underline">Polygon Faucet</a><br/>
-                    • All transactions are free for testing
+                    • System uses <strong>Push Chain Testnet</strong><br/>
+                    • <strong>Gas abstraction</strong> - no gas fees required!<br/>
+                    • Cross-chain compatibility enabled<br/>
+                    • Universal dApp reach with Push Protocol
                   </div>
                 </div>
                 
@@ -488,7 +475,7 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-              </div>
+        </div>
             ) : (
               <div className="flex-1 flex flex-col justify-end">
                 <div className="max-w-4xl mx-auto w-full space-y-6 pb-4">

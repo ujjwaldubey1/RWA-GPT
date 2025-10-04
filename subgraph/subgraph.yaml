@@ -4,13 +4,13 @@ schema:
 dataSources:
   - kind: ethereum
     name: MockRWAPool
-    network: sepolia # Recommended: Studio-supported testnet
+    network: pushchain # Push Chain testnet
     source:
-      # Deployed Sepolia contract
-      address: "0x09cd604be56dbd6e202512ed0c12ccc569591d3c"
+      # Deployed Push Chain contract (will be updated after deployment)
+      address: "0x0000000000000000000000000000000000000000" # Placeholder - update after deployment
       abi: MockRWAPool
-      # Sepolia deployment block
-      startBlock: 9290839
+      # Push Chain deployment block (will be updated after deployment)
+      startBlock: 0 # Placeholder - update after deployment
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7

@@ -13,9 +13,9 @@ module.exports = {
     },
   },
   networks: {
-    // Push Chain Testnet Configuration
+    // Push Chain Testnet Configuration (NOW LIVE!)
     pushchain: {
-      url: "https://testnet-rpc.pushchain.io", // Push Chain testnet RPC
+      url: "https://rpc.push.org", // Push Chain testnet RPC
       chainId: 1001, // Push Chain testnet chain ID
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       gasPrice: "auto",

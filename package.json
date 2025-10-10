@@ -4,9 +4,12 @@
   "description": "RWA-GPT migrated to Push Chain with cross-chain compatibility",
   "main": "index.js",
   "scripts": {
+    "setup": "hardhat run scripts/setup.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "test:local": "hardhat run scripts/test-local.js --network localhost",
     "test:pushchain": "hardhat run scripts/test-pushchain.js --network pushchain",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "deploy:pushchain": "hardhat run scripts/deploy.js --network pushchain",
     "deploy:polygon": "hardhat run scripts/deploy.js --network polygonAmoy",
     "verify:pushchain": "hardhat verify --network pushchain",
@@ -14,17 +17,34 @@
     "node": "hardhat node",
     "clean": "hardhat clean"
   },
-  "keywords": ["pushchain", "rwa", "defi", "cross-chain"],
+  "keywords": [
+    "pushchain",
+    "rwa",
+    "defi",
+    "cross-chain"
+  ],
   "author": "RWA-GPT Team",
   "license": "MIT",
   "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
     "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "chai": "^4.5.0",
+    "dotenv": "^16.3.1",
     "hardhat": "^2.19.0",
-    "dotenv": "^16.3.1"
+    "hardhat-gas-reporter": "^1.0.10",
+    "solidity-coverage": "^0.8.16",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@pushprotocol/push-chain-sdk": "^1.0.0",
     "ethers": "^6.15.0"
   }
 }

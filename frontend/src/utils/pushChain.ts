@@ -1,14 +1,14 @@
 import { ethers } from 'ethers';
 
-// Push Chain Configuration
+// Push Chain Configuration (NOW LIVE!)
 export const PUSH_CHAIN_CONFIG = {
   chainId: 1001,
   chainName: 'Push Chain Testnet',
-  rpcUrl: 'https://testnet-rpc.pushchain.io',
-  blockExplorerUrl: 'https://testnet-explorer.pushchain.io',
+  rpcUrl: 'https://rpc.push.org',
+  blockExplorerUrl: 'https://donut.push.network',
   nativeCurrency: {
-    name: 'PUSH',
-    symbol: 'PUSH',
+    name: 'PC',
+    symbol: 'PC',
     decimals: 18,
   },
   // Gas abstraction settings

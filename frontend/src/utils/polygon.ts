@@ -1,50 +1,47 @@
 import { ethers } from 'ethers';
 
-// Push Chain Configuration (Fallback to Local Testing)
-export const PUSH_CHAIN_CONFIG = {
-  chainId: 31337, // Local Hardhat network (fallback)
-  chainName: 'Push Chain Testnet (Local)',
-  rpcUrl: 'http://localhost:8545', // Local Hardhat (fallback)
-  blockExplorerUrl: 'https://donut.push.network',
+// Polygon Amoy Testnet Configuration
+export const POLYGON_CONFIG = {
+  chainId: 80002, // Polygon Amoy Testnet
+  chainName: 'Polygon Amoy Testnet',
+  rpcUrl: 'https://rpc-amoy.polygon.technology/',
+  blockExplorerUrl: 'https://amoy.polygonscan.com',
   nativeCurrency: {
-    name: 'ETH', // Local testing uses ETH
-    symbol: 'ETH', // Local testing uses ETH
+    name: 'MATIC',
+    symbol: 'MATIC',
     decimals: 18,
   },
-  // Gas abstraction settings
-  gasless: true,
-  metaTransactions: true,
-  isLocalFallback: true, // Flag to indicate this is local testing
+  // Gas settings for Polygon
+  gasless: false,
+  metaTransactions: false,
 };
 
-// Original Push Chain config (when RPC is available)
-export const PUSH_CHAIN_CONFIG_MAIN = {
-  chainId: 1001,
-  chainName: 'Push Chain Testnet',
-  rpcUrl: 'https://rpc.push.org',
-  blockExplorerUrl: 'https://donut.push.network',
+// Polygon Mainnet Configuration (for future use)
+export const POLYGON_MAINNET_CONFIG = {
+  chainId: 137,
+  chainName: 'Polygon Mainnet',
+  rpcUrl: 'https://polygon-rpc.com/',
+  blockExplorerUrl: 'https://polygonscan.com',
   nativeCurrency: {
-    name: 'PC',
-    symbol: 'PC',
+    name: 'MATIC',
+    symbol: 'MATIC',
     decimals: 18,
   },
-  // Gas abstraction settings
-  gasless: true,
-  metaTransactions: true,
-  isLocalFallback: false,
+  gasless: false,
+  metaTransactions: false,
 };
 
-// Push Chain Network Details for Wallet Connection
-export const PUSH_CHAIN_NETWORK = {
-  chainId: `0x${PUSH_CHAIN_CONFIG.chainId.toString(16)}`, // 0x3e9
-  chainName: PUSH_CHAIN_CONFIG.chainName,
-  nativeCurrency: PUSH_CHAIN_CONFIG.nativeCurrency,
-  rpcUrls: [PUSH_CHAIN_CONFIG.rpcUrl],
-  blockExplorerUrls: [PUSH_CHAIN_CONFIG.blockExplorerUrl],
+// Polygon Network Details for Wallet Connection
+export const POLYGON_NETWORK = {
+  chainId: `0x${POLYGON_CONFIG.chainId.toString(16)}`, // 0x13882
+  chainName: POLYGON_CONFIG.chainName,
+  nativeCurrency: POLYGON_CONFIG.nativeCurrency,
+  rpcUrls: [POLYGON_CONFIG.rpcUrl],
+  blockExplorerUrls: [POLYGON_CONFIG.blockExplorerUrl],
 };
 
-// Push Chain Provider Class
-export class PushChainProvider {
+// Polygon Provider Class
+export class PolygonProvider {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.JsonRpcSigner | null = null;
   private address: string | null = null;
@@ -55,7 +52,7 @@ export class PushChainProvider {
     this.address = null;
   }
 
-  // Initialize Push Chain connection with MetaMask
+  // Initialize Polygon connection with MetaMask
   async connect(): Promise<{
     address: string;
     provider: ethers.BrowserProvider;
@@ -68,16 +65,16 @@ export class PushChainProvider {
     if (typeof window.ethereum === 'undefined') {
       // Check for Phantom (Solana wallet)
       if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
-        throw new Error('⚠️ Phantom wallet detected!\n\nPhantom is a Solana wallet and does not support Push Chain (Ethereum-compatible).\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr disable Phantom and use an Ethereum wallet.');
+        throw new Error('⚠️ Phantom wallet detected!\n\nPhantom is a Solana wallet and does not support Polygon (Ethereum-compatible).\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr disable Phantom and use an Ethereum wallet.');
       }
-      throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nMetaMask is required to connect to Push Chain.');
+      throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nMetaMask is required to connect to Polygon.');
     }
 
     // If multiple wallets are installed, prefer MetaMask
     if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
       const metamaskProvider = window.ethereum.providers.find(
         (provider: any) => provider.isMetaMask
-      );
+      ) as any;
       
       if (metamaskProvider) {
         ethereum = metamaskProvider;
@@ -92,11 +89,16 @@ export class PushChainProvider {
                         window.ethereum.isCoinbaseWallet ? 'Coinbase Wallet' : 
                         'Unknown wallet';
       
-      throw new Error(`⚠️ ${walletName} detected!\n\nPush Chain requires MetaMask for best compatibility.\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr temporarily disable ${walletName}.`);
+      throw new Error(`⚠️ ${walletName} detected!\n\nPolygon requires MetaMask for best compatibility.\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr temporarily disable ${walletName}.`);
     }
 
     try {
       console.log('🔗 Connecting to MetaMask...');
+      
+      // Ensure ethereum is defined
+      if (!ethereum) {
+        throw new Error('Ethereum provider not found');
+      }
       
       // Request account access
       const accounts = await ethereum.request({ 
@@ -109,26 +111,26 @@ export class PushChainProvider {
       
       console.log('✅ MetaMask connected:', accounts[0]);
       
-      // Try to switch to Push Chain network
+      // Try to switch to Polygon network
       try {
-        console.log('🔄 Switching to Push Chain network...');
+        console.log('🔄 Switching to Polygon Amoy network...');
         await ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: PUSH_CHAIN_NETWORK.chainId }],
+          params: [{ chainId: POLYGON_NETWORK.chainId }],
         });
-        console.log('✅ Switched to Push Chain');
+        console.log('✅ Switched to Polygon Amoy');
       } catch (switchError: any) {
         // If switch fails, try to add the network
         if (switchError.code === 4902 || switchError.code === -32603) {
-          console.log('➕ Adding Push Chain network to MetaMask...');
+          console.log('➕ Adding Polygon Amoy network to MetaMask...');
           try {
             await ethereum.request({
               method: 'wallet_addEthereumChain',
-              params: [PUSH_CHAIN_NETWORK],
+              params: [POLYGON_NETWORK],
             });
-            console.log('✅ Push Chain network added');
+            console.log('✅ Polygon Amoy network added');
           } catch (addError: any) {
-            throw new Error(`Failed to add Push Chain network: ${addError.message}`);
+            throw new Error(`Failed to add Polygon Amoy network: ${addError.message}`);
           }
         } else if (switchError.code === 4001) {
           throw new Error('Connection rejected. Please approve the network switch in MetaMask.');
@@ -142,7 +144,7 @@ export class PushChainProvider {
       this.signer = await this.provider.getSigner();
       this.address = accounts[0];
       
-      console.log('🎉 Successfully connected to Push Chain via MetaMask!');
+      console.log('🎉 Successfully connected to Polygon via MetaMask!');
 
       return {
         address: this.address,
@@ -150,7 +152,7 @@ export class PushChainProvider {
         signer: this.signer,
       };
     } catch (error: any) {
-      console.error('❌ Push Chain connection failed:', error);
+      console.error('❌ Polygon connection failed:', error);
       
       // Provide user-friendly error messages
       if (error.message.includes('User rejected')) {
@@ -171,17 +173,17 @@ export class PushChainProvider {
     return await this.provider.getNetwork();
   }
 
-  // Check if connected to Push Chain
-  async isConnectedToPushChain(): Promise<boolean> {
+  // Check if connected to Polygon
+  async isConnectedToPolygon(): Promise<boolean> {
     try {
       const network = await this.getNetwork();
-      return Number(network.chainId) === PUSH_CHAIN_CONFIG.chainId;
+      return Number(network.chainId) === POLYGON_CONFIG.chainId;
     } catch {
       return false;
     }
   }
 
-  // Execute transaction with gas abstraction
+  // Execute transaction on Polygon
   async executeTransaction(transaction: {
     to: string;
     value?: string;
@@ -192,22 +194,19 @@ export class PushChainProvider {
       throw new Error('Wallet not connected');
     }
 
-    // Check if we're on Push Chain
-    const isOnPushChain = await this.isConnectedToPushChain();
-    if (!isOnPushChain) {
-      throw new Error('Please switch to Push Chain network');
+    // Check if we're on Polygon
+    const isOnPolygon = await this.isConnectedToPolygon();
+    if (!isOnPolygon) {
+      throw new Error('Please switch to Polygon Amoy network');
     }
 
     try {
-      // For Push Chain, we can use gas abstraction
-      // The transaction will be sponsored or use meta-transactions
+      // For Polygon, we use standard gas fees
       const txResponse = await this.signer.sendTransaction({
         to: transaction.to,
         value: transaction.value || '0x0',
         data: transaction.data || '0x',
         gasLimit: transaction.gasLimit || '0x5208',
-        // Gas price can be set to 0 for gasless transactions
-        gasPrice: PUSH_CHAIN_CONFIG.gasless ? '0x0' : undefined,
       });
 
       return txResponse;
@@ -251,7 +250,7 @@ export class PushChainProvider {
 }
 
 // Export singleton instance
-export const pushChainProvider = new PushChainProvider();
+export const polygonProvider = new PolygonProvider();
 
 // Utility functions
 export const formatAddress = (address: string): string => {
@@ -260,15 +259,15 @@ export const formatAddress = (address: string): string => {
 
 export const formatBalance = (balance: string): string => {
   const num = parseFloat(balance);
-  if (num < 0.001) return '< 0.001 PUSH';
-  return `${num.toFixed(4)} PUSH`;
+  if (num < 0.001) return '< 0.001 MATIC';
+  return `${num.toFixed(4)} MATIC`;
 };
 
-// Push Chain specific error messages
-export const PUSH_CHAIN_ERRORS = {
-  NETWORK_NOT_FOUND: 'Push Chain network not found. Please add it to your wallet.',
+// Polygon specific error messages
+export const POLYGON_ERRORS = {
+  NETWORK_NOT_FOUND: 'Polygon Amoy network not found. Please add it to your wallet.',
   USER_REJECTED: 'Transaction rejected by user',
   INSUFFICIENT_FUNDS: 'Insufficient funds for gas fees',
-  WRONG_NETWORK: 'Please switch to Push Chain network',
+  WRONG_NETWORK: 'Please switch to Polygon Amoy network',
   WALLET_NOT_CONNECTED: 'Please connect your wallet first',
 };

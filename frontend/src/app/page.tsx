@@ -3,18 +3,30 @@
 import { useState, useEffect, useRef } from "react";
 import { ethers } from "ethers";
 import { 
-  pushChainProvider, 
-  PUSH_CHAIN_CONFIG, 
-  PUSH_CHAIN_ERRORS,
+  polygonProvider, 
+  POLYGON_CONFIG, 
+  POLYGON_ERRORS,
   formatAddress,
   formatBalance 
-} from "../utils/pushChain";
+} from "../utils/polygon";
 
 declare global {
   interface Window {
     ethereum?: {
       request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
       send: (method: string, params?: unknown[]) => Promise<unknown>;
+      isMetaMask?: boolean;
+      isPhantom?: boolean;
+      isCoinbaseWallet?: boolean;
+      providers?: Array<{
+        isMetaMask?: boolean;
+        isPhantom?: boolean;
+        request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      }>;
+    };
+    solana?: {
+      isPhantom?: boolean;
+      connect: () => Promise<void>;
     };
   }
 }
@@ -31,7 +43,7 @@ interface WalletState {
   provider: ethers.BrowserProvider | null;
   signer: ethers.JsonRpcSigner | null;
   balance: string;
-  isConnectedToPushChain: boolean;
+  isConnectedToPolygon: boolean;
 }
 
 export default function Home() {
@@ -42,7 +54,7 @@ export default function Home() {
     provider: null,
     signer: null,
     balance: "0",
-    isConnectedToPushChain: false
+    isConnectedToPolygon: false
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -58,49 +70,50 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  // Connect wallet to Push Chain
+  // Connect wallet to Polygon
   const connectWallet = async () => {
     try {
       setIsConnecting(true);
       
-      // Use Push Chain provider
-      const { address, provider, signer } = await pushChainProvider.connect();
+      // Use Polygon provider
+      const { address, provider, signer } = await polygonProvider.connect();
       
       // Get balance
-      const balance = await pushChainProvider.getBalance();
+      const balance = await polygonProvider.getBalance();
       
-      // Check if connected to Push Chain
-      const isConnectedToPushChain = await pushChainProvider.isConnectedToPushChain();
+      // Check if connected to Polygon
+      const isConnectedToPolygon = await polygonProvider.isConnectedToPolygon();
       
       setWallet({
         address,
         provider,
         signer,
         balance,
-        isConnectedToPushChain
+        isConnectedToPolygon
       });
       
       // Show success message
       const successMessage: Message = {
         sender: 'agent',
-        text: `✅ Connected to Push Chain!\n💰 Balance: ${formatBalance(balance)}\n🌐 Network: ${PUSH_CHAIN_CONFIG.chainName}`,
+        text: `✅ Connected to Polygon!\n💰 Balance: ${formatBalance(balance)}\n🌐 Network: ${POLYGON_CONFIG.chainName}`,
         isTransaction: false
       };
       setMessages(prev => [...prev, successMessage]);
       
-    } catch (error: any) {
-      console.error("Error connecting to Push Chain:", error);
+    } catch (error: unknown) {
+      console.error("Error connecting to Polygon:", error);
       
-      let errorMsg = PUSH_CHAIN_ERRORS.WALLET_NOT_CONNECTED;
-      if (error.message.includes('network')) {
-        errorMsg = PUSH_CHAIN_ERRORS.NETWORK_NOT_FOUND;
-      } else if (error.message.includes('rejected')) {
-        errorMsg = PUSH_CHAIN_ERRORS.USER_REJECTED;
+      let errorMsg = POLYGON_ERRORS.WALLET_NOT_CONNECTED;
+      const errorText = error instanceof Error ? error.message : String(error);
+      if (errorText.includes('network')) {
+        errorMsg = POLYGON_ERRORS.NETWORK_NOT_FOUND;
+      } else if (errorText.includes('rejected')) {
+        errorMsg = POLYGON_ERRORS.USER_REJECTED;
       }
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install MetaMask or another Web3 wallet\n• Add Push Chain testnet to your wallet\n• Get test PUSH tokens from the faucet`,
+        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install MetaMask (🦊 https://metamask.io)\n• Add Polygon Amoy testnet to MetaMask\n• Get test MATIC tokens from the faucet`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -109,12 +122,12 @@ export default function Home() {
     }
   };
 
-  // Execute swap transaction on Push Chain
+  // Execute swap transaction on Polygon
   const executeSwap = async (transactionData: Record<string, unknown>) => {
     if (!wallet.signer) {
       const errorMessage: Message = {
         sender: 'agent',
-        text: `❌ ${PUSH_CHAIN_ERRORS.WALLET_NOT_CONNECTED}`,
+        text: `❌ ${POLYGON_ERRORS.WALLET_NOT_CONNECTED}`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -122,11 +135,11 @@ export default function Home() {
     }
 
     try {
-      // Check if we're on Push Chain
-      if (!wallet.isConnectedToPushChain) {
+      // Check if we're on Polygon
+      if (!wallet.isConnectedToPolygon) {
         const networkErrorMessage: Message = {
           sender: 'agent',
-          text: `❌ ${PUSH_CHAIN_ERRORS.WRONG_NETWORK}\n\n💡 Please switch to Push Chain testnet in your wallet.`,
+          text: `❌ ${POLYGON_ERRORS.WRONG_NETWORK}\n\n💡 Please switch to Polygon Amoy testnet in your wallet.`,
           isTransaction: false
         };
         setMessages(prev => [...prev, networkErrorMessage]);
@@ -164,8 +177,8 @@ export default function Home() {
 
       console.log("Sending transaction with params:", txParams);
 
-      // Use Push Chain provider for gas abstraction
-      const txResponse = await pushChainProvider.executeTransaction({
+      // Use Polygon provider for transaction execution
+      const txResponse = await polygonProvider.executeTransaction({
         to: txParams.to as string,
         value: txParams.value as string,
         data: txParams.data as string,
@@ -200,7 +213,7 @@ export default function Home() {
 
       const successMessage: Message = {
         sender: 'agent',
-        text: `🚀 Transaction submitted to Push Chain! Hash: ${txHash}\n⏳ Waiting for confirmation...\n💡 Gas abstraction active - no gas fees required!`,
+        text: `🚀 Transaction submitted to Polygon! Hash: ${txHash}\n⏳ Waiting for confirmation...\n💡 Transaction will use standard gas fees`,
         isTransaction: false
       };
       
@@ -227,31 +240,31 @@ export default function Home() {
       
       const confirmedMessage: Message = {
         sender: 'agent',
-        text: `✅ Transaction confirmed on Push Chain! \n🔗 Hash: ${receipt?.hash}\n📦 Block: ${receipt?.blockNumber}\n🎉 Your RWA investment is complete!\n🌐 View on explorer: ${PUSH_CHAIN_CONFIG.blockExplorerUrl}/tx/${receipt?.hash}`,
+        text: `✅ Transaction confirmed on Polygon! \n🔗 Hash: ${receipt?.hash}\n📦 Block: ${receipt?.blockNumber}\n🎉 Your RWA investment is complete!\n🌐 View on explorer: ${POLYGON_CONFIG.blockExplorerUrl}/tx/${receipt?.hash}`,
         isTransaction: false
       };
       
       setMessages(prev => [...prev, confirmedMessage]);
     } catch (error: unknown) {
       console.error("Transaction failed:", error);
-      let errorMsg = "❌ Transaction failed on Push Chain";
+      let errorMsg = "❌ Transaction failed on Polygon";
       
       if (error && typeof error === 'object' && 'code' in error) {
         const errorCode = (error as { code: number }).code;
         if (errorCode === -32603) {
-          errorMsg = "❌ Transaction rejected by Push Chain network. Gas abstraction should handle fees automatically.";
+          errorMsg = "❌ Transaction rejected by Polygon network. Please check your gas fees.";
         } else if (errorCode === 4001) {
-          errorMsg = PUSH_CHAIN_ERRORS.USER_REJECTED;
+          errorMsg = POLYGON_ERRORS.USER_REJECTED;
         } else if (errorCode === -32000) {
-          errorMsg = "❌ Insufficient funds. Please get test PUSH tokens from the faucet.";
+          errorMsg = "❌ Insufficient funds. Please get test MATIC tokens from the faucet.";
         }
       }
       if (error && typeof error === 'object' && 'message' in error) {
         const errorMessage = (error as { message: string }).message;
         if (errorMessage.includes('insufficient funds')) {
-          errorMsg = "❌ Insufficient funds. Please get test PUSH tokens from the Push Chain faucet.";
+          errorMsg = "❌ Insufficient funds. Please get test MATIC tokens from the Polygon faucet.";
         } else if (errorMessage.includes('network')) {
-          errorMsg = PUSH_CHAIN_ERRORS.WRONG_NETWORK;
+          errorMsg = POLYGON_ERRORS.WRONG_NETWORK;
         } else {
           errorMsg = `❌ Transaction failed: ${errorMessage}`;
         }
@@ -259,7 +272,7 @@ export default function Home() {
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: errorMsg + `\n\n💡 Push Chain Benefits:\n• Gas abstraction - no gas fees required!\n• Cross-chain compatibility\n• Universal dApp reach\n• Get test PUSH tokens from the faucet`,
+        text: errorMsg + `\n\n💡 Polygon Benefits:\n• Low gas fees\n• Fast transactions\n• Ethereum compatibility\n• Get test MATIC tokens from the faucet`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -377,12 +390,12 @@ export default function Home() {
           {wallet.address ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${wallet.isConnectedToPushChain ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${wallet.isConnectedToPolygon ? 'bg-green-400' : 'bg-yellow-400'}`}></div>
                 {sidebarOpen && (
                   <div className="text-xs text-gray-400">
                     <div>{formatAddress(wallet.address)}</div>
                     <div className="text-xs text-gray-500">
-                      {wallet.isConnectedToPushChain ? 'Push Chain' : 'Other Network'}
+                      {wallet.isConnectedToPolygon ? 'Polygon Amoy' : 'Other Network'}
                     </div>
                     <div className="text-xs text-gray-500">
                       {formatBalance(wallet.balance)}
@@ -390,9 +403,9 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              {!wallet.isConnectedToPushChain && sidebarOpen && (
+              {!wallet.isConnectedToPolygon && sidebarOpen && (
                 <div className="text-xs text-yellow-400">
-                  Switch to Push Chain
+                  Switch to Polygon
                 </div>
               )}
             </div>
@@ -402,7 +415,7 @@ export default function Home() {
               disabled={isConnecting}
               className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
             >
-              {isConnecting ? "..." : sidebarOpen ? "Connect to Push Chain" : "🔗"}
+              {isConnecting ? "..." : sidebarOpen ? "🦊 Connect MetaMask" : "🔗"}
             </button>
           )}
         </div>
@@ -450,12 +463,13 @@ export default function Home() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to RWA-GPT</h2>
                 <p className="text-gray-600 mb-4">Your AI-powered Real-World Asset conversational agent. Ask me about investments, show data, or request swaps.</p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-sm">
-                  <div className="font-medium text-blue-900 mb-2">🚀 Push Chain Integration Active</div>
+                  <div className="font-medium text-blue-900 mb-2">🚀 Polygon Integration Active</div>
                   <div className="text-blue-700">
-                    • System uses <strong>Push Chain Testnet</strong><br/>
-                    • <strong>Gas abstraction</strong> - no gas fees required!<br/>
-                    • Cross-chain compatibility enabled<br/>
-                    • Universal dApp reach with Push Protocol
+                    • System uses <strong>Polygon Amoy Testnet</strong><br/>
+                    • <strong>Low gas fees</strong> - cost-effective transactions!<br/>
+                    • <strong>MetaMask required</strong> - Connect with MetaMask 🦊<br/>
+                    • Ethereum compatibility enabled<br/>
+                    • Fast and reliable transactions
                   </div>
                 </div>
                 

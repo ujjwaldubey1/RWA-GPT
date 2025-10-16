@@ -1,24 +1,26 @@
 {
-  "name": "rwa-gpt-pushchain",
+  "name": "rwa-gpt-polygon",
   "version": "1.0.0",
-  "description": "RWA-GPT migrated to Push Chain with cross-chain compatibility",
+  "description": "RWA-GPT on Polygon with cross-chain compatibility",
   "main": "index.js",
   "scripts": {
     "setup": "hardhat run scripts/setup.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:local": "hardhat run scripts/test-local.js --network localhost",
-    "test:pushchain": "hardhat run scripts/test-pushchain.js --network pushchain",
+    "test:polygon": "hardhat run scripts/test-polygon.js --network polygonAmoy",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
-    "deploy:pushchain": "hardhat run scripts/deploy.js --network pushchain",
     "deploy:polygon": "hardhat run scripts/deploy.js --network polygonAmoy",
-    "verify:pushchain": "hardhat verify --network pushchain",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network polygon",
+    "deploy:pushchain": "hardhat run scripts/deploy.js --network pushchain",
     "verify:polygon": "hardhat verify --network polygonAmoy",
+    "verify:mainnet": "hardhat verify --network polygon",
+    "verify:pushchain": "hardhat verify --network pushchain",
     "node": "hardhat node",
     "clean": "hardhat clean"
   },
   "keywords": [
-    "pushchain",
+    "polygon",
     "rwa",
     "defi",
     "cross-chain"

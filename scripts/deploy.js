@@ -1,7 +1,7 @@
 const { ethers } = require("hardhat");
 
 async function main() {
-  console.log("🚀 Starting deployment to Push Chain...");
+  console.log("🚀 Starting deployment to Polygon...");
   
   // Get the contract factory
   const MockRWAPool = await ethers.getContractFactory("MockRWAPool");
@@ -19,10 +19,31 @@ async function main() {
   console.log("✅ Contract deployed successfully!");
   console.log("📍 Contract Address:", contractAddress);
   console.log("🌐 Network:", network.name, "(Chain ID:", network.chainId, ")");
-  console.log("🔗 Block Explorer:", `https://testnet-explorer.pushchain.io/address/${contractAddress}`);
   
-  // Verify contract if on Push Chain testnet
-  if (network.chainId === 1001n) {
+  // Show appropriate block explorer based on network
+  if (network.chainId === 80002n) {
+    console.log("🔗 Block Explorer:", `https://amoy.polygonscan.com/address/${contractAddress}`);
+  } else if (network.chainId === 137n) {
+    console.log("🔗 Block Explorer:", `https://polygonscan.com/address/${contractAddress}`);
+  } else if (network.chainId === 1001n) {
+    console.log("🔗 Block Explorer:", `https://testnet-explorer.pushchain.io/address/${contractAddress}`);
+  } else {
+    console.log("🔗 Block Explorer: Local network");
+  }
+  
+  // Verify contract based on network
+  if (network.chainId === 80002n || network.chainId === 137n) {
+    console.log("🔍 Verifying contract on Polygon explorer...");
+    try {
+      await hre.run("verify:verify", {
+        address: contractAddress,
+        constructorArguments: [],
+      });
+      console.log("✅ Contract verified successfully!");
+    } catch (error) {
+      console.log("⚠️ Contract verification failed:", error.message);
+    }
+  } else if (network.chainId === 1001n) {
     console.log("🔍 Verifying contract on Push Chain explorer...");
     try {
       await hre.run("verify:verify", {
@@ -78,7 +99,7 @@ async function main() {
   console.log("📋 Next steps:");
   console.log("1. Update your frontend to use the new contract address");
   console.log("2. Update subgraph configuration with new contract address");
-  console.log("3. Test the application with Push Chain integration");
+  console.log("3. Test the application with Polygon integration");
 }
 
 main()

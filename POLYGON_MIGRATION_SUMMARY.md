@@ -17,9 +17,9 @@ The RWA-GPT project has been successfully migrated from PushChain back to Polygo
 
 - ✅ **New Provider**: Created `frontend/src/utils/polygon.ts` to replace PushChain provider
 - ✅ **Updated UI**: All references changed from PushChain to Polygon
-- ✅ **Wallet Integration**: MetaMask integration updated for Polygon Amoy
+- ✅ **Wallet Integration**: Phantom wallet prioritized for Polygon Amoy (MetaMask fallback)
 - ✅ **Dependencies**: Removed PushChain-specific packages
-- ✅ **Error Messages**: Updated to show Polygon-specific guidance
+- ✅ **Error Messages**: Updated to show Phantom-specific guidance
 
 ### 3. **Package Configuration** (`package.json`)
 
@@ -70,7 +70,7 @@ The RWA-GPT project has been successfully migrated from PushChain back to Polygo
 
 ### **User Experience**
 
-- ✅ **Familiar UX**: Standard MetaMask integration
+- ✅ **Modern UX**: Phantom wallet integration with MetaMask fallback
 - ✅ **Fast Transactions**: Quick confirmation times
 - ✅ **Wide Support**: Compatible with all major wallets
 
@@ -105,10 +105,11 @@ npm run dev
 
 ### **Connect to Polygon**
 
-1. Install MetaMask if not already installed
-2. Add Polygon Amoy Testnet to MetaMask
-3. Get test MATIC from the Polygon faucet
-4. Connect your wallet to the application
+1. Install Phantom wallet (preferred) or MetaMask as fallback
+2. Switch Phantom to Ethereum mode if needed
+3. Add Polygon Amoy Testnet to your wallet
+4. Get test MATIC from the Polygon faucet
+5. Connect your wallet to the application
 
 ## 🔧 Network Configuration
 
@@ -137,7 +138,7 @@ npm run dev
 
 ### **Frontend**
 
-- ✅ Connect MetaMask to Polygon
+- ✅ Connect Phantom to Polygon (MetaMask fallback)
 - ✅ Execute transactions
 - ✅ Display correct network info
 - ✅ Handle errors gracefully
@@ -181,7 +182,8 @@ If you need to rollback to PushChain:
 - **Polygon Documentation**: https://docs.polygon.technology/
 - **Polygon Faucet**: https://faucet.polygon.technology/
 - **Polygonscan**: https://amoy.polygonscan.com/
-- **MetaMask**: https://metamask.io/
+- **Phantom Wallet**: https://phantom.app/
+- **MetaMask** (Fallback): https://metamask.io/
 
 ---
 

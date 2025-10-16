@@ -17,10 +17,12 @@ declare global {
       send: (method: string, params?: unknown[]) => Promise<unknown>;
       isMetaMask?: boolean;
       isPhantom?: boolean;
+      isBraveWallet?: boolean;
       isCoinbaseWallet?: boolean;
       providers?: Array<{
         isMetaMask?: boolean;
         isPhantom?: boolean;
+        isBraveWallet?: boolean;
         request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
       }>;
     };
@@ -113,7 +115,7 @@ export default function Home() {
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install MetaMask (🦊 https://metamask.io)\n• Add Polygon Amoy testnet to MetaMask\n• Get test MATIC tokens from the faucet`,
+        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install Phantom (👻 https://phantom.app)\n• Switch Phantom to Ethereum mode\n• Add Polygon Amoy testnet to Phantom\n• Get test MATIC tokens from the faucet`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -415,7 +417,7 @@ export default function Home() {
               disabled={isConnecting}
               className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
             >
-              {isConnecting ? "..." : sidebarOpen ? "🦊 Connect MetaMask" : "🔗"}
+              {isConnecting ? "..." : sidebarOpen ? "👻 Connect Phantom" : "🔗"}
             </button>
           )}
         </div>
@@ -467,7 +469,7 @@ export default function Home() {
                   <div className="text-blue-700">
                     • System uses <strong>Polygon Amoy Testnet</strong><br/>
                     • <strong>Low gas fees</strong> - cost-effective transactions!<br/>
-                    • <strong>MetaMask required</strong> - Connect with MetaMask 🦊<br/>
+                    • <strong>Phantom preferred</strong> - Connect with Phantom 👻<br/>
                     • Ethereum compatibility enabled<br/>
                     • Fast and reliable transactions
                   </div>

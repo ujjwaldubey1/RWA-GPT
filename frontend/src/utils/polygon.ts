@@ -52,48 +52,60 @@ export class PolygonProvider {
     this.address = null;
   }
 
-  // Initialize Polygon connection with MetaMask
+  // Initialize Polygon connection with Phantom (Ethereum mode)
   async connect(): Promise<{
     address: string;
     provider: ethers.BrowserProvider;
     signer: ethers.JsonRpcSigner;
   }> {
-    // Detect and prioritize MetaMask over other wallets
+    // Detect and prioritize Phantom over other wallets
     let ethereum = window.ethereum;
     
-    // Check for MetaMask specifically
+    // Check for Phantom first (Ethereum mode)
     if (typeof window.ethereum === 'undefined') {
       // Check for Phantom (Solana wallet)
       if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
-        throw new Error('⚠️ Phantom wallet detected!\n\nPhantom is a Solana wallet and does not support Polygon (Ethereum-compatible).\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr disable Phantom and use an Ethereum wallet.');
+        throw new Error('⚠️ Phantom detected in Solana mode!\n\nPlease switch Phantom to Ethereum mode to connect to Polygon.\n\n✅ How to switch:\n1. Open Phantom wallet\n2. Click the network selector\n3. Switch to "Ethereum"\n4. Try connecting again');
       }
-      throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nMetaMask is required to connect to Polygon.');
+      throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr install MetaMask as fallback:\n→ https://metamask.io');
     }
 
-    // If multiple wallets are installed, prefer MetaMask
+    // If multiple wallets are installed, prefer Phantom
     if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
-      const metamaskProvider = window.ethereum.providers.find(
-        (provider: any) => provider.isMetaMask
+      // Look for Phantom first
+      const phantomProvider = window.ethereum.providers.find(
+        (provider: any) => provider.isPhantom || provider.isBraveWallet
       ) as any;
       
-      if (metamaskProvider) {
-        ethereum = metamaskProvider;
-        console.log('✅ MetaMask detected and selected');
+      if (phantomProvider) {
+        ethereum = phantomProvider;
+        console.log('✅ Phantom detected and selected');
       } else {
-        // No MetaMask found in providers
-        throw new Error('⚠️ Multiple wallets detected but MetaMask not found!\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr make sure MetaMask is enabled.');
+        // Fallback to MetaMask if Phantom not found
+        const metamaskProvider = window.ethereum.providers.find(
+          (provider: any) => provider.isMetaMask
+        ) as any;
+        
+        if (metamaskProvider) {
+          ethereum = metamaskProvider;
+          console.log('✅ MetaMask detected as fallback');
+        } else {
+          throw new Error('⚠️ Multiple wallets detected but Phantom not found!\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr install MetaMask:\n→ https://metamask.io');
+        }
       }
-    } else if (!window.ethereum.isMetaMask) {
-      // Single wallet provider but it's not MetaMask
-      const walletName = window.ethereum.isPhantom ? 'Phantom' : 
-                        window.ethereum.isCoinbaseWallet ? 'Coinbase Wallet' : 
+    } else if (window.ethereum.isPhantom || window.ethereum.isBraveWallet) {
+      // Single Phantom provider
+      console.log('✅ Phantom wallet detected');
+    } else if (!window.ethereum.isMetaMask && !window.ethereum.isPhantom) {
+      // Single wallet provider but it's not Phantom or MetaMask
+      const walletName = window.ethereum.isCoinbaseWallet ? 'Coinbase Wallet' : 
                         'Unknown wallet';
       
-      throw new Error(`⚠️ ${walletName} detected!\n\nPolygon requires MetaMask for best compatibility.\n\n✅ Please install MetaMask:\n→ https://metamask.io\n\nOr temporarily disable ${walletName}.`);
+      throw new Error(`⚠️ ${walletName} detected!\n\nPhantom is preferred for best compatibility.\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr temporarily disable ${walletName}.`);
     }
 
     try {
-      console.log('🔗 Connecting to MetaMask...');
+      console.log('🔗 Connecting to Phantom...');
       
       // Ensure ethereum is defined
       if (!ethereum) {
@@ -103,13 +115,13 @@ export class PolygonProvider {
       // Request account access
       const accounts = await ethereum.request({ 
         method: 'eth_requestAccounts' 
-      });
+      }) as string[];
       
       if (!accounts || accounts.length === 0) {
-        throw new Error('No accounts found. Please unlock MetaMask.');
+        throw new Error('No accounts found. Please unlock Phantom.');
       }
       
-      console.log('✅ MetaMask connected:', accounts[0]);
+      console.log('✅ Phantom connected:', accounts[0]);
       
       // Try to switch to Polygon network
       try {
@@ -122,7 +134,7 @@ export class PolygonProvider {
       } catch (switchError: any) {
         // If switch fails, try to add the network
         if (switchError.code === 4902 || switchError.code === -32603) {
-          console.log('➕ Adding Polygon Amoy network to MetaMask...');
+          console.log('➕ Adding Polygon Amoy network to Phantom...');
           try {
             await ethereum.request({
               method: 'wallet_addEthereumChain',
@@ -133,7 +145,7 @@ export class PolygonProvider {
             throw new Error(`Failed to add Polygon Amoy network: ${addError.message}`);
           }
         } else if (switchError.code === 4001) {
-          throw new Error('Connection rejected. Please approve the network switch in MetaMask.');
+          throw new Error('Connection rejected. Please approve the network switch in Phantom.');
         } else {
           throw switchError;
         }
@@ -144,7 +156,7 @@ export class PolygonProvider {
       this.signer = await this.provider.getSigner();
       this.address = accounts[0];
       
-      console.log('🎉 Successfully connected to Polygon via MetaMask!');
+      console.log('🎉 Successfully connected to Polygon via Phantom!');
 
       return {
         address: this.address,
@@ -156,9 +168,9 @@ export class PolygonProvider {
       
       // Provide user-friendly error messages
       if (error.message.includes('User rejected')) {
-        throw new Error('Connection rejected. Please approve the connection in MetaMask.');
+        throw new Error('Connection rejected. Please approve the connection in Phantom.');
       } else if (error.message.includes('Already processing')) {
-        throw new Error('MetaMask is busy. Please check MetaMask and try again.');
+        throw new Error('Phantom is busy. Please check Phantom and try again.');
       }
       
       throw error;
@@ -265,9 +277,9 @@ export const formatBalance = (balance: string): string => {
 
 // Polygon specific error messages
 export const POLYGON_ERRORS = {
-  NETWORK_NOT_FOUND: 'Polygon Amoy network not found. Please add it to your wallet.',
+  NETWORK_NOT_FOUND: 'Polygon Amoy network not found. Please add it to Phantom.',
   USER_REJECTED: 'Transaction rejected by user',
   INSUFFICIENT_FUNDS: 'Insufficient funds for gas fees',
   WRONG_NETWORK: 'Please switch to Polygon Amoy network',
-  WALLET_NOT_CONNECTED: 'Please connect your wallet first',
+  WALLET_NOT_CONNECTED: 'Please connect Phantom wallet first',
 };

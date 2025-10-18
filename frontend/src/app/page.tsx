@@ -284,16 +284,18 @@ export default function Home() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, quickQuery?: string) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    const currentQuery = quickQuery || inputText;
+    if (!currentQuery.trim()) return;
 
     // Add user message
     const userMessage: Message = {
       sender: 'user',
-      text: inputText
+      text: currentQuery
     };
     setMessages(prev => [...prev, userMessage]);
+    setInputText("");
 
     try {
       // Call backend API
@@ -303,7 +305,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: inputText,
+          message: currentQuery,
           chainId: wallet.provider ? Number((await wallet.provider.getNetwork()).chainId) : 80002,
           fromAddress: wallet.address,
         }),
@@ -330,8 +332,6 @@ export default function Home() {
       };
       setMessages(prev => [...prev, errorMessage]);
     }
-
-    setInputText("");
   };
 
   const quickActions = [
@@ -373,10 +373,9 @@ export default function Home() {
                   {quickActions.map((action, index) => (
                     <button
                       key={index}
-                      onClick={() => {
+                      onClick={(e) => {
                         setInputText(action.query);
-                        const event = { preventDefault: () => {} } as React.FormEvent;
-                        handleSubmit(event);
+                        handleSubmit(e, action.query);
                       }}
                       className="w-full flex items-center gap-3 p-2 rounded text-sm text-gray-300 hover:bg-gray-800 transition-colors"
                     >
@@ -509,10 +508,9 @@ export default function Home() {
                   {quickActions.map((action, index) => (
                     <button
                       key={index}
-                      onClick={() => {
+                      onClick={(e) => {
                         setInputText(action.query);
-                        const event = { preventDefault: () => {} } as React.FormEvent;
-                        handleSubmit(event);
+                        handleSubmit(e, action.query);
                       }}
                       className="p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all group"
                     >
@@ -579,7 +577,7 @@ export default function Home() {
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     placeholder="Ask about RWA investments..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-black"
                   />
                 </div>
                 <button

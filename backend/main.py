@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import json
 import os
 from dotenv import load_dotenv
-from agent import query_rwa_database, get_1inch_swap_data
+from .agent import query_rwa_database, get_1inch_swap_data, search_web
 import re
 import requests
 from datetime import datetime
@@ -506,6 +506,24 @@ async def ask_agent(request: MessageRequest):
                 )
             except Exception as e:
                 logging.warning(f"Failed to store user message in Supabase: {e}")
+
+        # Priority 1: Check for web search intent first.
+        # This is to distinguish "best investments" (search) from "invest 100 usdc" (action).
+        search_keywords = ["search", "what is", "who is", "explain", "best", "top", "latest", "find", "tell me about", "compare", "how to"]
+        is_direct_investment_command = "invest" in message and any(token in message for token in ["usdc", "dai", "tcb", "pcr", "rwa"])
+
+        if any(keyword in message for keyword in search_keywords) and not is_direct_investment_command:
+            try:
+                search_result = await search_web(request.message)
+                await store_agent_response(search_result)
+                return MessageResponse(
+                    response=search_result,
+                    is_transaction=False
+                )
+            except Exception as e:
+                logging.error(f"Web search failed: {e}")
+                # If search fails, we can fall through to other handlers.
+                pass
         
         # Check if user wants to see transaction history
         if any(keyword in message for keyword in ["transaction history", "my transactions", "transaction list", "history", "past transactions"]):
@@ -630,7 +648,7 @@ async def ask_agent(request: MessageRequest):
     "asset_type": "Real Estate Token",
     "protocol": "RealT",
     "yield_apy": 6.5,
-    "min_investment": "50 USDC",
+    "min_investment": "50 USDC",                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
     "status": "Active"
   }
 ]"""
@@ -642,7 +660,7 @@ async def ask_agent(request: MessageRequest):
                 )
         
         # Check if user wants to invest (more flexible matching)
-        elif "invest" in message and any(token in message for token in ["usdc", "tcb", "pcr", "rwa"]):
+        elif is_direct_investment_command:
             try:
                 # Extract amount from message (simple parse; default 100)
                 m = re.search(r"(\d+(?:\.\d+)?)", request.message)
@@ -651,7 +669,7 @@ async def ask_agent(request: MessageRequest):
                 chain_id = 80002  # Force Polygon Amoy Testnet for testing
                 
                 # Get correct token addresses for the testnet
-                from agent import tokens_for_chain
+                from .agent import tokens_for_chain
                 src_token, dst_token, src_decimals = tokens_for_chain(chain_id)
                 
                 # Get swap data from 1inch
@@ -731,7 +749,7 @@ async def ask_agent(request: MessageRequest):
         # Real-time RWA data (focused on Real Estate for hackathon)
         else:
             # Check if user is asking for real estate or general investments
-            if any(keyword in message for keyword in ["real estate", "property", "rental", "realt", "rwa", "investment"]):
+            if any(keyword in message for keyword in ["real estate", "property", "rental", "realt", "rwa", "investment"]) and not is_direct_investment_command:
                 # Fetch real-time real estate data
                 real_estate_data = fetch_real_estate_rwa_data()
                 
@@ -765,42 +783,21 @@ async def ask_agent(request: MessageRequest):
                     is_transaction=False
                 )
             else:
-                # Fallback to intelligent recommendations for other queries
-                recommendations = analyze_prompt_and_recommend(request.message)
-                
-                # But prioritize real estate since it's our focus
-                real_estate_data = fetch_real_estate_rwa_data()
-                
-                response_text = f"Based on your query: '{request.message}'\n\n"
-                response_text += "🏠 **LIVE REAL ESTATE RWA OPPORTUNITIES:**\n\n"
-                
-                # Show top 3 real estate options
-                for i, asset in enumerate(real_estate_data[:3], 1):
-                    response_text += f"🏆 #{i} - {asset['asset_id']}: {asset['property_name']}\n"
-                    response_text += f"   📍 {asset['location']} | APY: {asset['yield_apy']}%\n"
-                    response_text += f"   💰 Min: {asset['min_investment']} | Status: {asset['status']}\n"
-                    response_text += f"   ⚡ Invest: 'invest 100 USDC in {asset['asset_id']}'\n\n"
-                
-                response_text += "🎯 **Real-time data updated every request**\n"
-                response_text += "💡 Try: 'real estate investments' for detailed property info\n"
-                
-            response = MessageResponse(
-                response=response_text,
-                is_transaction=False
-            )
-            
-            # Store agent response in Supabase if available
-            if SUPABASE_AVAILABLE:
+                # Fallback to web search if no other handlers match
                 try:
-                    await insert_message(
-                        role="agent",
-                        content=response.response,
-                        timestamp=datetime.utcnow().isoformat() + "Z"
+                    search_result = await search_web(request.message)
+                    await store_agent_response(search_result)
+                    return MessageResponse(
+                        response=search_result,
+                        is_transaction=False
                     )
                 except Exception as e:
-                    logging.warning(f"Failed to store agent response in Supabase: {e}")
-            
-            return response
+                    logging.error(f"Fallback web search failed: {e}")
+                    # Final fallback if search also fails
+                    return MessageResponse(
+                        response="I'm not sure how to handle that. Please try asking in a different way.",
+                        is_transaction=False
+                    )
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

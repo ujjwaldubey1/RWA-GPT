@@ -1,0 +1,15 @@
+langgraph
+langchain
+langchain_openai
+tavily-python
+beautifulsoup4
+requests
+python-dotenv
+uvicorn
+fastapi
+sse-starlette
+langchain-community
+pandas
+uagents
+brightdata
+lxml

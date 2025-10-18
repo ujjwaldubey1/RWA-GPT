@@ -2,18 +2,73 @@ import os
 import requests
 import json
 from dotenv import load_dotenv
-from uagents import Agent, Context, Model
-from decimal import Decimal
-from typing import Tuple, Optional
 
 # Load environment variables
 load_dotenv()
+
+from uagents import Agent, Context, Model
+from decimal import Decimal
+from typing import Tuple, Optional
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+import asyncio
+
+# Initialize the tools
+tavily_tool = TavilySearchResults(max_results=5)
+tools = [tavily_tool]
+
+# Initialize the model
+model = ChatOpenAI(temperature=0)
+
+# Create the agent
+graph = create_react_agent(model, tools)
+
 
 class Message(Model):
     content: str
 
 
 agent = Agent(name="RWA-GPT-Agent")
+
+async def search_web(query: str):
+    """Search the web for a query and provide RWA-focused analysis and recommendations."""
+    
+    # Construct a specialized prompt for RWA analysis with clear formatting instructions
+    prompt = f"""
+    You are a specialized financial analyst AI focusing exclusively on Real World Assets (RWA).
+    A user has the following query: "{query}"
+
+    Your task is to generate a response in clean, well-formatted Markdown.
+
+    1.  **Analyze the Query**: Re-interpret the user's query strictly within the context of Real World Assets. If the query is "best investments", treat it as "best RWA investments".
+    2.  **Web Search**: Use the search tool to find relevant articles, market data, and analytics about the RWA-focused query. Prioritize sources with concrete data.
+    3.  **Synthesize and Format**: Create a response with the following structure:
+
+        ### 📊 Analytics Summary
+        -   **Typical APY**: Provide a range (e.g., 4% - 12%).
+        -   **Risk Level**: Categorize as Low, Medium, or High, and briefly explain why.
+        -   **Popular Platforms**: List 2-3 key protocols or platforms in this space (e.g., Ondo Finance, Centrifuge, RealT).
+        -   **Market Trend**: Briefly describe the current market trend (e.g., "Growing adoption due to high yields in traditional finance").
+        -   **Liquidity**: Describe the typical liquidity (e.g., "Varies from highly liquid T-bills to illiquid real estate tokens").
+
+        ### 💡 Recommendations
+        Based on the analytics, provide a clear, actionable recommendation. Use bullet points.
+        -   **For Conservative Investors**: Suggest a specific type of RWA and explain why it's suitable.
+        -   **For High-Yield Seekers**: Suggest a different type of RWA and explain the risk/reward trade-off.
+
+    Ensure the entire output is valid Markdown. Do not include any preamble before the first heading.
+    """
+    
+    try:
+        # The create_react_agent expects a list of messages
+        messages = [("human", prompt)]
+        response = await graph.ainvoke({"messages": messages})
+        # The final answer is in the 'content' of the last message
+        return response['messages'][-1].content
+    except Exception as e:
+        return f"Error searching web: {str(e)}"
+
 
 
 @agent.on_message(model=Message)
@@ -57,8 +112,11 @@ async def handle_message(ctx: Context, sender: str, msg: Message) -> None:
             response = f"1inch swap data for {amount} USDC:\n{pretty}" if is_tx else f"No executable tx from aggregator. Details:\n{pretty}"
         except Exception as e:
             response = f"Error getting swap data: {str(e)}"
+    elif "search" in msg.content.lower() or "rwa best investment" in msg.content.lower():
+        query = msg.content.replace("search", "").strip()
+        response = await search_web(query)
     else:
-        response = "Message received"
+        response = "Message received, you can ask me to 'search <your query>' or 'show investments' or 'invest <amount> USDC in <asset>'"
     
     await ctx.send(sender, Message(content=response))
 

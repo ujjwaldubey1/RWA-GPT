@@ -7,8 +7,7 @@ import {
   POLYGON_CONFIG, 
   POLYGON_ERRORS,
   formatAddress,
-  formatBalance,
-  forcePhantomUsage
+  formatBalance
 } from "../utils/polygon";
 
 declare global {
@@ -78,9 +77,8 @@ export default function Home() {
     try {
       setIsConnecting(true);
       
-      // Try to force Phantom usage first
-      console.log('🔧 Attempting to force Phantom usage...');
-      forcePhantomUsage();
+      // Connect to the best available wallet
+      console.log('🔧 Connecting to best available wallet...');
       
       // Use Polygon provider
       const { address, provider, signer } = await polygonProvider.connect();
@@ -120,7 +118,7 @@ export default function Home() {
       
       const errorMessage: Message = {
         sender: 'agent',
-        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install Phantom (👻 https://phantom.app)\n• Switch Phantom to Ethereum mode\n• Add Polygon Amoy testnet to Phantom\n• Get test MATIC tokens from the faucet`,
+        text: `❌ ${errorMsg}\n\n💡 Make sure to:\n• Install MetaMask (🦊 https://metamask.io)\n• Or install Phantom (👻 https://phantom.app)\n• Switch to Ethereum mode if using Phantom\n• Add Polygon Amoy testnet to your wallet\n• Get test MATIC tokens from the faucet`,
         isTransaction: false
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -423,7 +421,7 @@ export default function Home() {
                 disabled={isConnecting}
                 className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
               >
-                {isConnecting ? "..." : sidebarOpen ? "👻 Connect Phantom" : "🔗"}
+                {isConnecting ? "..." : sidebarOpen ? "🔗 Connect Wallet" : "🔗"}
               </button>
               
               {sidebarOpen && (
@@ -439,7 +437,7 @@ export default function Home() {
                     
                     const debugMessage: Message = {
                       sender: 'agent',
-                      text: `🔍 **Wallet Debug Info**\n\nCheck the browser console (F12) for detailed wallet detection information.\n\n**Quick Check:**\n• Phantom in Ethereum mode: ${window.ethereum?.isPhantom ? '✅' : '❌'}\n• MetaMask: ${window.ethereum?.isMetaMask ? '✅' : '❌'}\n• Multiple providers: ${window.ethereum?.providers?.length || 0}\n\n**If Phantom is not detected:**\n1. Make sure Phantom is installed\n2. Switch Phantom to Ethereum mode\n3. Refresh the page and try again`,
+                      text: `🔍 **Wallet Debug Info**\n\nCheck the browser console (F12) for detailed wallet detection information.\n\n**Quick Check:**\n• MetaMask: ${window.ethereum?.isMetaMask ? '✅' : '❌'}\n• Phantom in Ethereum mode: ${window.ethereum?.isPhantom ? '✅' : '❌'}\n• Coinbase Wallet: ${window.ethereum?.isCoinbaseWallet ? '✅' : '❌'}\n• Multiple providers: ${window.ethereum?.providers?.length || 0}\n\n**Priority Order:**\n1. MetaMask (preferred)\n2. Phantom (Ethereum mode)\n3. Coinbase Wallet\n4. Other wallets\n\n**If no wallet is detected:**\n1. Install MetaMask: https://metamask.io\n2. Or install Phantom: https://phantom.app\n3. Refresh the page and try again`,
                       isTransaction: false
                     };
                     setMessages(prev => [...prev, debugMessage]);
@@ -500,7 +498,8 @@ export default function Home() {
                   <div className="text-blue-700">
                     • System uses <strong>Polygon Amoy Testnet</strong><br/>
                     • <strong>Low gas fees</strong> - cost-effective transactions!<br/>
-                    • <strong>Phantom preferred</strong> - Connect with Phantom 👻<br/>
+                    • <strong>MetaMask preferred</strong> - Connect with MetaMask 🦊<br/>
+                    • <strong>Multi-wallet support</strong> - Phantom, Coinbase, etc.<br/>
                     • Ethereum compatibility enabled<br/>
                     • Fast and reliable transactions
                   </div>

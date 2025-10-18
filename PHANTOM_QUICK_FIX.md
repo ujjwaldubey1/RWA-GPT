@@ -120,3 +120,4 @@ When working correctly:
 
 **Note**: The development server should work better than the build for testing wallet connections. Once we confirm Phantom is working, we can fix the build issues.
 
+

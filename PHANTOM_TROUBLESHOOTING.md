@@ -223,3 +223,4 @@ You'll know Phantom is working correctly when:
 
 **Remember**: The app is designed to automatically prioritize Phantom over MetaMask. If it's still using MetaMask, there's likely a detection issue that can be resolved using the steps above.
 
+

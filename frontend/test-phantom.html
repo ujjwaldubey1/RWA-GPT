@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phantom Wallet Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .info { border-left: 4px solid #2196F3; }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .step { margin: 20px 0; padding: 15px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👻 Phantom Wallet Connection Test</h1>
+        
+        <div class="step">
+            <h3>Step 1: Check Wallet Detection</h3>
+            <button onclick="detectWallets()">🔍 Detect Wallets</button>
+            <div id="detection" class="status info">Click "Detect Wallets" to check what wallets are available</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Force Phantom Selection</h3>
+            <button onclick="forcePhantom()">👻 Force Phantom</button>
+            <div id="force" class="status info">Click "Force Phantom" to manually select Phantom wallet</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Connect to Phantom</h3>
+            <button onclick="connectPhantom()" id="connectBtn">🔗 Connect Phantom</button>
+            <div id="connection" class="status info">Click "Connect Phantom" to establish connection</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 4: Check Network</h3>
+            <button onclick="checkNetwork()">🌐 Check Network</button>
+            <div id="network" class="status info">Click "Check Network" to verify you're on Polygon Amoy</div>
+        </div>
+
+        <div class="step">
+            <h3>Step 5: Get Balance</h3>
+            <button onclick="getBalance()">💰 Get Balance</button>
+            <div id="balance" class="status info">Click "Get Balance" to check your MATIC balance</div>
+        </div>
+
+        <div id="logs" class="status" style="margin-top: 20px;">
+            <h3>Console Logs:</h3>
+            <div id="logContent" style="max-height: 200px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        let connectedAccount = null;
+        let provider = null;
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logContent = document.getElementById('logContent');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<span style="color: #888;">[${timestamp}]</span> ${message}`;
+            logContent.appendChild(logEntry);
+            logContent.scrollTop = logContent.scrollHeight;
+            console.log(message);
+        }
+
+        // Detect available wallets
+        function detectWallets() {
+            const detection = document.getElementById('detection');
+            const info = {
+                ethereum: !!window.ethereum,
+                phantom: window.ethereum?.isPhantom,
+                metamask: window.ethereum?.isMetaMask,
+                brave: window.ethereum?.isBraveWallet,
+                coinbase: window.ethereum?.isCoinbaseWallet,
+                providers: window.ethereum?.providers?.length || 0
+            };
+
+            let message = '<strong>Wallet Detection Results:</strong><br>';
+            message += `• Ethereum Provider: ${info.ethereum ? '✅' : '❌'}<br>`;
+            message += `• Phantom: ${info.phantom ? '✅' : '❌'}<br>`;
+            message += `• MetaMask: ${info.metamask ? '✅' : '❌'}<br>`;
+            message += `• Brave Wallet: ${info.brave ? '✅' : '❌'}<br>`;
+            message += `• Coinbase Wallet: ${info.coinbase ? '✅' : '❌'}<br>`;
+            message += `• Multiple Providers: ${info.providers}`;
+
+            detection.innerHTML = message;
+            detection.className = 'status info';
+
+            log('Wallet detection completed');
+            log(`Phantom detected: ${info.phantom}`);
+            log(`MetaMask detected: ${info.metamask}`);
+            log(`Total providers: ${info.providers}`);
+        }
+
+        // Force Phantom selection
+        function forcePhantom() {
+            const force = document.getElementById('force');
+            
+            if (!window.ethereum) {
+                force.innerHTML = '❌ No Ethereum provider found!';
+                force.className = 'status error';
+                log('❌ No Ethereum provider found');
+                return;
+            }
+
+            if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
+                const phantom = window.ethereum.providers.find(p => 
+                    p.isPhantom || p.isBraveWallet || 
+                    p.constructor?.name?.toLowerCase().includes('phantom')
+                );
+                
+                if (phantom) {
+                    window.ethereum = phantom;
+                    force.innerHTML = '✅ Phantom manually selected from multiple providers';
+                    force.className = 'status success';
+                    log('✅ Phantom manually selected');
+                } else {
+                    force.innerHTML = '❌ Phantom not found in multiple providers';
+                    force.className = 'status error';
+                    log('❌ Phantom not found in providers');
+                }
+            } else if (window.ethereum.isPhantom) {
+                force.innerHTML = '✅ Phantom is already the primary provider';
+                force.className = 'status success';
+                log('✅ Phantom is primary provider');
+            } else {
+                force.innerHTML = '❌ Phantom not detected as primary provider';
+                force.className = 'status error';
+                log('❌ Phantom not detected');
+            }
+        }
+
+        // Connect to Phantom
+        async function connectPhantom() {
+            const connection = document.getElementById('connection');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+            
+            try {
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
+                }
+
+                log('🔗 Requesting account access...');
+                const accounts = await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('No accounts found');
+                }
+
+                connectedAccount = accounts[0];
+                connection.innerHTML = `✅ Connected to: ${connectedAccount}`;
+                connection.className = 'status success';
+                
+                connectBtn.textContent = '✅ Connected';
+                connectBtn.style.background = '#4CAF50';
+                
+                log(`✅ Connected to account: ${connectedAccount}`);
+                
+            } catch (error) {
+                connection.innerHTML = `❌ Connection failed: ${error.message}`;
+                connection.className = 'status error';
+                connectBtn.textContent = '🔗 Connect Phantom';
+                connectBtn.disabled = false;
+                log(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        // Check network
+        async function checkNetwork() {
+            const network = document.getElementById('network');
+            
+            try {
+                if (!window.ethereum) {
+                    throw new Error('No Ethereum provider found');
+                }
+
+                const chainId = await window.ethereum.request({
+                    method: 'eth_chainId'
+                });
+
+                const chainIdNumber = parseInt(chainId, 16);
+                
+                if (chainIdNumber === 80002) {
+                    network.innerHTML = '✅ Connected to Polygon Amoy Testnet (Chain ID: 80002)';
+                    network.className = 'status success';
+                    log('✅ On Polygon Amoy network');
+                } else {
+                    network.innerHTML = `❌ Wrong network! Chain ID: ${chainIdNumber} (Expected: 80002)`;
+                    network.className = 'status error';
+                    log(`❌ Wrong network: ${chainIdNumber}`);
+                    
+                    // Try to switch to Polygon Amoy
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x13882' }] // 80002 in hex
+                        });
+                        network.innerHTML = '✅ Switched to Polygon Amoy Testnet';
+                        network.className = 'status success';
+                        log('✅ Switched to Polygon Amoy');
+                    } catch (switchError) {
+                        log(`❌ Failed to switch network: ${switchError.message}`);
+                    }
+                }
+            } catch (error) {
+                network.innerHTML = `❌ Network check failed: ${error.message}`;
+                network.className = 'status error';
+                log(`❌ Network check failed: ${error.message}`);
+            }
+        }
+
+        // Get balance
+        async function getBalance() {
+            const balance = document.getElementById('balance');
+            
+            try {
+                if (!connectedAccount) {
+                    throw new Error('Please connect wallet first');
+                }
+
+                const balanceHex = await window.ethereum.request({
+                    method: 'eth_getBalance',
+                    params: [connectedAccount, 'latest']
+                });
+
+                const balanceWei = parseInt(balanceHex, 16);
+                const balanceMATIC = balanceWei / Math.pow(10, 18);
+                
+                balance.innerHTML = `💰 Balance: ${balanceMATIC.toFixed(4)} MATIC`;
+                balance.className = 'status success';
+                log(`💰 Balance: ${balanceMATIC.toFixed(4)} MATIC`);
+                
+            } catch (error) {
+                balance.innerHTML = `❌ Balance check failed: ${error.message}`;
+                balance.className = 'status error';
+                log(`❌ Balance check failed: ${error.message}`);
+            }
+        }
+
+        // Auto-detect on page load
+        window.addEventListener('load', () => {
+            log('🚀 Phantom Wallet Test Page Loaded');
+            detectWallets();
+        });
+    </script>
+</body>
+</html>
+

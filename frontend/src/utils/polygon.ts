@@ -58,54 +58,85 @@ export class PolygonProvider {
     provider: ethers.BrowserProvider;
     signer: ethers.JsonRpcSigner;
   }> {
-    // Detect and prioritize Phantom over other wallets
-    let ethereum = window.ethereum;
+    console.log('🔍 Detecting wallets...');
     
-    // Check for Phantom first (Ethereum mode)
+    // Check for Phantom (Solana mode) first
+    if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
+      throw new Error('⚠️ Phantom detected in Solana mode!\n\nPlease switch Phantom to Ethereum mode to connect to Polygon.\n\n✅ How to switch:\n1. Open Phantom wallet\n2. Click the network selector\n3. Switch to "Ethereum"\n4. Try connecting again');
+    }
+    
+    // Check for Ethereum provider
     if (typeof window.ethereum === 'undefined') {
-      // Check for Phantom (Solana wallet)
-      if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
-        throw new Error('⚠️ Phantom detected in Solana mode!\n\nPlease switch Phantom to Ethereum mode to connect to Polygon.\n\n✅ How to switch:\n1. Open Phantom wallet\n2. Click the network selector\n3. Switch to "Ethereum"\n4. Try connecting again');
-      }
       throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr install MetaMask as fallback:\n→ https://metamask.io');
     }
 
-    // If multiple wallets are installed, prefer Phantom
+    let ethereum = window.ethereum;
+    let selectedWallet = 'unknown';
+
+    // Debug: Log all available providers
+    console.log('🔍 Available providers:', window.ethereum.providers);
+    console.log('🔍 Primary provider flags:', {
+      isMetaMask: window.ethereum.isMetaMask,
+      isPhantom: window.ethereum.isPhantom,
+      isBraveWallet: window.ethereum.isBraveWallet,
+      isCoinbaseWallet: window.ethereum.isCoinbaseWallet
+    });
+
+    // If multiple wallets are installed, aggressively prefer Phantom
     if (window.ethereum.providers && Array.isArray(window.ethereum.providers)) {
-      // Look for Phantom first
-      const phantomProvider = window.ethereum.providers.find(
-        (provider: any) => provider.isPhantom || provider.isBraveWallet
-      ) as any;
+      console.log('🔍 Multiple wallets detected, searching for Phantom...');
+      
+      // Look for Phantom with multiple detection methods
+      const phantomProvider = window.ethereum.providers.find((provider: any) => {
+        console.log('🔍 Checking provider:', {
+          isPhantom: provider.isPhantom,
+          isBraveWallet: provider.isBraveWallet,
+          constructor: provider.constructor?.name
+        });
+        return provider.isPhantom || provider.isBraveWallet || 
+               provider.constructor?.name?.toLowerCase().includes('phantom');
+      }) as any;
       
       if (phantomProvider) {
         ethereum = phantomProvider;
-        console.log('✅ Phantom detected and selected');
+        selectedWallet = 'phantom';
+        console.log('✅ Phantom detected and selected from multiple providers');
       } else {
-        // Fallback to MetaMask if Phantom not found
+        // Only fallback to MetaMask if Phantom is truly not available
         const metamaskProvider = window.ethereum.providers.find(
           (provider: any) => provider.isMetaMask
         ) as any;
         
         if (metamaskProvider) {
           ethereum = metamaskProvider;
-          console.log('✅ MetaMask detected as fallback');
+          selectedWallet = 'metamask';
+          console.log('⚠️ MetaMask detected as fallback (Phantom not found)');
         } else {
           throw new Error('⚠️ Multiple wallets detected but Phantom not found!\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr install MetaMask:\n→ https://metamask.io');
         }
       }
-    } else if (window.ethereum.isPhantom || window.ethereum.isBraveWallet) {
-      // Single Phantom provider
-      console.log('✅ Phantom wallet detected');
-    } else if (!window.ethereum.isMetaMask && !window.ethereum.isPhantom) {
-      // Single wallet provider but it's not Phantom or MetaMask
-      const walletName = window.ethereum.isCoinbaseWallet ? 'Coinbase Wallet' : 
-                        'Unknown wallet';
-      
-      throw new Error(`⚠️ ${walletName} detected!\n\nPhantom is preferred for best compatibility.\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr temporarily disable ${walletName}.`);
+    } else {
+      // Single wallet provider - check if it's Phantom
+      if (window.ethereum.isPhantom || window.ethereum.isBraveWallet) {
+        selectedWallet = 'phantom';
+        console.log('✅ Phantom wallet detected (single provider)');
+      } else if (window.ethereum.isMetaMask) {
+        selectedWallet = 'metamask';
+        console.log('⚠️ MetaMask detected (single provider) - Phantom preferred');
+        // For single MetaMask, we should still encourage Phantom
+        throw new Error('⚠️ MetaMask detected!\n\nFor the best experience, please install Phantom wallet:\n\n✅ Install Phantom:\n→ https://phantom.app\n\nPhantom provides a better user experience with modern UI and multi-chain support.');
+      } else {
+        const walletName = window.ethereum.isCoinbaseWallet ? 'Coinbase Wallet' : 
+                          'Unknown wallet';
+        
+        throw new Error(`⚠️ ${walletName} detected!\n\nPhantom is preferred for best compatibility.\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr temporarily disable ${walletName}.`);
+      }
     }
 
+    console.log(`🎯 Selected wallet: ${selectedWallet}`);
+
     try {
-      console.log('🔗 Connecting to Phantom...');
+      console.log(`🔗 Connecting to ${selectedWallet === 'phantom' ? 'Phantom' : 'wallet'}...`);
       
       // Ensure ethereum is defined
       if (!ethereum) {
@@ -263,6 +294,32 @@ export class PolygonProvider {
 
 // Export singleton instance
 export const polygonProvider = new PolygonProvider();
+
+// Utility function to force Phantom usage
+export const forcePhantomUsage = () => {
+  // Clear any cached wallet connections
+  if (typeof window !== 'undefined') {
+    // Force detection of Phantom
+    const phantomProvider = window.ethereum?.providers?.find((provider: any) => 
+      provider.isPhantom || provider.isBraveWallet
+    );
+    
+    if (phantomProvider) {
+      // Temporarily override window.ethereum to force Phantom
+      const originalEthereum = window.ethereum;
+      window.ethereum = phantomProvider as any;
+      
+      // Restore after a short delay
+      setTimeout(() => {
+        window.ethereum = originalEthereum;
+      }, 1000);
+      
+      console.log('🔧 Forced Phantom usage');
+      return true;
+    }
+  }
+  return false;
+};
 
 // Utility functions
 export const formatAddress = (address: string): string => {

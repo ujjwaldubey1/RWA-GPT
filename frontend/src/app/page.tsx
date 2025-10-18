@@ -7,7 +7,8 @@ import {
   POLYGON_CONFIG, 
   POLYGON_ERRORS,
   formatAddress,
-  formatBalance 
+  formatBalance,
+  forcePhantomUsage
 } from "../utils/polygon";
 
 declare global {
@@ -76,6 +77,10 @@ export default function Home() {
   const connectWallet = async () => {
     try {
       setIsConnecting(true);
+      
+      // Try to force Phantom usage first
+      console.log('🔧 Attempting to force Phantom usage...');
+      forcePhantomUsage();
       
       // Use Polygon provider
       const { address, provider, signer } = await polygonProvider.connect();
@@ -412,13 +417,39 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <button
-              onClick={connectWallet}
-              disabled={isConnecting}
-              className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
-            >
-              {isConnecting ? "..." : sidebarOpen ? "👻 Connect Phantom" : "🔗"}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={connectWallet}
+                disabled={isConnecting}
+                className={`${sidebarOpen ? 'w-full' : 'w-8 h-8'} bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium ${sidebarOpen ? 'py-2' : 'flex items-center justify-center'}`}
+              >
+                {isConnecting ? "..." : sidebarOpen ? "👻 Connect Phantom" : "🔗"}
+              </button>
+              
+              {sidebarOpen && (
+                <button
+                  onClick={() => {
+                    console.log('🔍 Wallet Debug Info:');
+                    console.log('window.ethereum:', window.ethereum);
+                    console.log('window.ethereum.providers:', window.ethereum?.providers);
+                    console.log('window.ethereum.isMetaMask:', window.ethereum?.isMetaMask);
+                    console.log('window.ethereum.isPhantom:', window.ethereum?.isPhantom);
+                    console.log('window.ethereum.isBraveWallet:', window.ethereum?.isBraveWallet);
+                    console.log('window.solana:', window.solana);
+                    
+                    const debugMessage: Message = {
+                      sender: 'agent',
+                      text: `🔍 **Wallet Debug Info**\n\nCheck the browser console (F12) for detailed wallet detection information.\n\n**Quick Check:**\n• Phantom in Ethereum mode: ${window.ethereum?.isPhantom ? '✅' : '❌'}\n• MetaMask: ${window.ethereum?.isMetaMask ? '✅' : '❌'}\n• Multiple providers: ${window.ethereum?.providers?.length || 0}\n\n**If Phantom is not detected:**\n1. Make sure Phantom is installed\n2. Switch Phantom to Ethereum mode\n3. Refresh the page and try again`,
+                      isTransaction: false
+                    };
+                    setMessages(prev => [...prev, debugMessage]);
+                  }}
+                  className="w-full py-1 px-2 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs"
+                >
+                  🔍 Debug Wallets
+                </button>
+              )}
+            </div>
           )}
         </div>
 

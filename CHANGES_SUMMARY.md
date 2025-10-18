@@ -334,3 +334,4 @@ You'll know it's working when:
 **Ready to test? Open http://localhost:3000 and click "🦊 Connect MetaMask"!**
 
 
+

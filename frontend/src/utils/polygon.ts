@@ -65,7 +65,16 @@ export class PolygonProvider {
     if (typeof window.ethereum === 'undefined') {
       // Check for Phantom (Solana wallet)
       if (typeof window.solana !== 'undefined' && window.solana.isPhantom) {
-        throw new Error('⚠️ Phantom detected in Solana mode!\n\nPlease switch Phantom to Ethereum mode to connect to Polygon.\n\n✅ How to switch:\n1. Open Phantom wallet\n2. Click the network selector\n3. Switch to "Ethereum"\n4. Try connecting again');
+        // Prompt user to switch to Ethereum mode
+        try {
+          // This is a conceptual example; the actual method may differ.
+          // Phantom's API might provide a way to request a switch.
+          // For now, we'll throw a more informative error.
+          await window.solana.connect(); // Re-trigger connection to potentially show network switcher
+          throw new Error('⚠️ Phantom is in Solana mode. Please switch to Ethereum mode in the Phantom wallet and try again.');
+        } catch (e) {
+          throw new Error('⚠️ Phantom detected in Solana mode!\n\nPlease switch Phantom to Ethereum mode to connect to Polygon.\n\n✅ How to switch:\n1. Open Phantom wallet\n2. Click the network selector\n3. Switch to "Ethereum"\n4. Try connecting again');
+        }
       }
       throw new Error('❌ No Ethereum wallet found!\n\n✅ Please install Phantom:\n→ https://phantom.app\n\nOr install MetaMask as fallback:\n→ https://metamask.io');
     }
